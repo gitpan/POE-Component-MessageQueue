@@ -1,0 +1,27 @@
+abstract: A Perl message queue based on POE that uses STOMP as its communication protocol.
+author: David Snopek
+build_requires:
+  Data::Dumper: 0
+  File::Temp: 0
+  Test::More: 0
+distribution_type: module
+generated_by: Module::Install version 0.62
+license: gpl
+name: POE-Component-MessageQueue
+no_index:
+  directory:
+    - test
+    - examples
+    - inc
+    - t
+requires:
+  Carp: 0
+  DBD::SQLite2: 0
+  DBI: 0
+  IO::File: 0
+  IO::String: 0
+  Net::Stomp: 0
+  POE::Component::Logger: 0
+  POE::Component::Server::TCP: 0
+  POE::Wheel::ReadWrite: 0
+version: 0.1.0
