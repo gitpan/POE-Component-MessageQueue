@@ -24,4 +24,4 @@ requires:
   POE::Component::Logger: 0
   POE::Component::Server::TCP: 0
   POE::Wheel::ReadWrite: 0
-version: 0.1.0
+version: 0.1.1
