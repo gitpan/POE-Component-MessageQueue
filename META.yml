@@ -16,7 +16,7 @@ no_index:
     - t
 requires:
   Carp: 0
-  DBD::SQLite2: 0
+  DBD::SQLite: 1.13
   DBI: 0
   IO::File: 0
   IO::String: 0
@@ -24,4 +24,4 @@ requires:
   POE::Component::Logger: 0
   POE::Component::Server::TCP: 0
   POE::Wheel::ReadWrite: 0
-version: 0.1.1
+version: 0.1.2

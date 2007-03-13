@@ -3,14 +3,14 @@ package POE::Component::Server::Stomp;
 
 use POE::Session;
 use POE::Component::Server::TCP;
-use POE::Filter::Stream;
+use POE::Filter::Line;
 use IO::String;
 use Net::Stomp::Frame;
 
 use Carp qw(croak);
 use strict;
 
-my $VERSION = '0.2';
+my $VERSION = '0.2.1';
 
 sub new
 {
@@ -40,25 +40,46 @@ sub new
 	my $client_disconnected = delete $args->{ClientDisconnected};
 	my $client_error        = delete $args->{ClientError};
 
-	# our tinsy object
-	my $self = {
-		handle_frame => $handle_frame
-	};
-	bless $self, $class;
-
-	# pushes data onto the per-client buffers and initiates processing
+	# A closure?  In Perl!?  Hrm...
 	my $client_input = sub 
 	{
-		my ($kernel, $input, $heap) = @_[ KERNEL, ARG0, HEAP ];
+		my ($kernel, $input) = @_[ KERNEL, ARG0 ];
 
-		# append input to existing buffer
-		$heap->{buffer} .= $input;
+		my $io = IO::String->new( $input );
 
-		# if not already in a process cycle, then start one!
-		if ( $heap->{processing_buffer} != 1 )
+		my $command;
+		my $headers;
+		my $body;
+
+		# read the command
+		$command = $io->getline;
+		chop $command;
+
+		# read headers
+		while (1)
 		{
-			$kernel->yield('process_buffer');
+			my $line = $io->getline;
+			chop $line;
+			last if $line eq "";
+			my ( $key, $value ) = split /: ?/, $line, 2;
+			$headers->{$key} = $value;
 		}
+
+		# read the body (all the remaining data)
+		$io->read( $body, (length($input) - $io->tell()) );
+
+		# create the frame.
+		my $frame = Net::Stomp::Frame->new({
+			command => $command,
+			headers => $headers,
+			body    => $body
+		});
+
+		# Replace ARG0 with the parsed frame.
+		splice(@_, ARG0, 1, $frame);
+
+		# pass to the user handler
+		$handle_frame->(@_);
 	};
 
 	# create the TCP server.
@@ -69,84 +90,11 @@ sub new
 		ClientError        => $client_error,
 		ClientDisconnected => $client_disconnected,
 
-		ObjectStates => [
-			$self => [ 'process_buffer' ]
-		],
-
-		ClientFilter => "POE::Filter::Stream"
+		ClientFilter => [ "POE::Filter::Line", Literal => "\000" ],
 	);
 
 	# POE::Component::Server::TCP does it!  So, I do it too.
 	return undef;
-}
-
-sub process_buffer
-{
-	my ($self, $kernel, $heap) = @_[ OBJECT, KERNEL, HEAP ];
-
-	# we extract the first message at the front of the buffer
-	if ( $heap->{buffer} =~ /(.*?)\0(.*)/s )
-	{
-		$heap->{processing_buffer} = 1;
-
-		my $frame_data;
-
-		# adjust the buffer, grab our data
-		$frame_data     = $1;
-		$heap->{buffer} = $2;
-
-		# parse the frame 
-		my $frame = $self->parse_frame( $frame_data );
-
-		# call the user handler
-		splice @_, ARG0, 1, $frame;
-		$self->{handle_frame}->(@_);
-
-		# generate another parse buffer event
-		$kernel->yield('process_buffer');
-	}
-	else
-	{
-		# we're cool!  Nothing more interesting in the buffer.
-		$heap->{processing_buffer} = 0;
-	}
-}
-
-sub parse_frame
-{
-	my ($self, $input) = @_;
-
-	my $io = IO::String->new( $input );
-
-	my $command;
-	my $headers;
-	my $body;
-
-	# read the command
-	$command = $io->getline;
-	chop $command;
-
-	# read headers
-	while (1)
-	{
-		my $line = $io->getline;
-		chop $line;
-		last if $line eq "";
-		my ( $key, $value ) = split /: ?/, $line, 2;
-		$headers->{$key} = $value;
-	}
-
-	# read the body (all the remaining data)
-	$io->read( $body, (length($input) - $io->tell()) );
-
-	# create the frame.
-	my $frame = Net::Stomp::Frame->new({
-		command => $command,
-		headers => $headers,
-		body    => $body
-	});
-
-	return $frame;
 }
 
 1;
