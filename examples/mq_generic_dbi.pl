@@ -2,7 +2,8 @@
 use POE;
 use POE::Component::MessageQueue;
 use POE::Component::MessageQueue::Storage::Throttled;
-use POE::Component::MessageQueue::Storage::DBI;
+use POE::Component::MessageQueue::Storage::Generic;
+use POE::Component::MessageQueue::Storage::Generic::DBI;
 use POE::Component::MessageQueue::Logger;
 use Getopt::Long;
 use Carp;
@@ -11,6 +12,9 @@ use strict;
 $SIG{__DIE__} = sub {
     Carp::confess(@_);
 };
+
+#use POE::Component::DebugShell;
+#POE::Component::DebugShell->spawn();
 
 # Force some logger output without using the real logger.
 $POE::Component::MessageQueue::Logger::LEVEL = 0;
@@ -35,7 +39,7 @@ my $throttle_max = 2;
 GetOptions(
 	"port|p=i"     => \$port,
 	"hostname|h=s" => \$hostname,
-	"throttle|T=i" => \$throttle_max,
+	"throttle|T=i" => \$throttle_max
 );
 
 sub _init_sqlite
@@ -67,13 +71,16 @@ POE::Component::MessageQueue->new({
 	hostname => $hostname,
 
 	storage => POE::Component::MessageQueue::Storage::Throttled->new({
-		storage => POE::Component::MessageQueue::Storage::DBI->new({
-			dsn      => $DB_DSN,
-			username => $DB_USERNAME,
-			password => $DB_PASSWORD,
+		storage => POE::Component::MessageQueue::Storage::Generic->new({
+			package => 'POE::Component::MessageQueue::Storage::Generic::DBI',
+			options => [{
+				dsn      => $DB_DSN,
+				username => $DB_USERNAME,
+				password => $DB_PASSWORD,
+			}],
 		}),
-		throttle_max => $throttle_max
-	}),
+		throttle_max => $throttle_max,
+	})
 });
 
 POE::Kernel->run();

@@ -34,29 +34,45 @@ sub _log
 sub set_message_stored_handler
 {
 	my ($self, $handler) = @_;
-
 	$self->{message_stored} = $handler;
+	undef;
 }
 
 sub set_dispatch_message_handler
 {
 	my ($self, $handler) = @_;
-	
 	$self->{dispatch_message} = $handler;
+	undef;
 }
 
 sub set_destination_ready_handler
 {
 	my ($self, $handler) = @_;
-
 	$self->{destination_ready} = $handler;
+	undef;
 }
 
 sub set_logger
 {
 	my ($self, $logger) = @_;
-
 	$self->{logger} = $logger;
+	undef;
+}
+
+# A hack to allow POE::Component::Generic to set the log function
+# in a single event.  This allows us to setup the logger before any
+# other events happen.
+sub set_log_function
+{
+	my ($self, $func) = @_;
+	$self->get_logger()->set_log_function($func);
+	undef;
+}
+
+sub get_logger
+{
+	my $self = shift;
+	return $self->{logger};
 }
 
 sub get_next_message_id
@@ -117,11 +133,11 @@ __END__
 
 =head1 NAME
 
-POE::Component::MessageQueue::Storage -- Parent of provided storage backends
+POE::Component::MessageQueue::Storage -- Parent of provided storage engines
 
 =head1 DESCRIPTION
 
-The parent class of the provided storage backends.  This is an "abstract" class that can't be used as is, but defines the interface for other objects of this type.
+The parent class of the provided storage engines.  This is an "abstract" class that can't be used as is, but defines the interface for other objects of this type.
 
 =head1 INTERFACE
 
@@ -137,7 +153,7 @@ Takes a CODEREF which will get called back when a message has been retrieved fro
 
 =item set_destination_ready_header I<CODEREF>
 
-Takes a CODEREF which will get called back when a destination is ready to be claimed from again.  This is necessary for storage backends that will lock a destination while attempting to retrieve a message.  This handler will be called when the destination is unlocked so that message queue knows that it can claim more messages.  If your storage backend doesn't lock anything, you B<must> call this handler immediately after called the above handler.  
+Takes a CODEREF which will get called back when a destination is ready to be claimed from again.  This is necessary for storage engines that will lock a destination while attempting to retrieve a message.  This handler will be called when the destination is unlocked so that message queue knows that it can claim more messages.  If your storage engine doesn't lock anything, you B<must> call this handler immediately after called the above handler.  
 
 It will be called with a single argument: the destination string.
 
@@ -155,7 +171,7 @@ Takes an object of type L<POE::Component::MessageQueue::Message> that should be 
 
 =item remove I<SCALAR>
 
-Takes a message_id to be removed from the storage backend.
+Takes a message_id to be removed from the storage engine.
 
 =item claim_and_retrieve I<SCALAR, SCALAR> or I<HASHREF>
 
@@ -172,7 +188,10 @@ Takes a destination and client id.  All messages which are owned by this client 
 L<POE::Component::MessageQueue>,
 L<POE::Component::MessageQueue::Storage::Memory>,
 L<POE::Component::MessageQueue::Storage::DBI>,
-L<POE::Component::MessageQueue::Storage::FileSystem>
+L<POE::Component::MessageQueue::Storage::FileSystem>,
+L<POE::Component::MessageQueue::Storage::Generic>,
+L<POE::Component::MessageQueue::Storage::Generic::DBI>,
+L<POE::Component::MessageQueue::Storage::Throttled>,
 L<POE::Component::MessageQueue::Storage::Complex>
 
 =cut

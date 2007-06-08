@@ -2,7 +2,7 @@
 use POE;
 use POE::Component::MessageQueue;
 use POE::Component::MessageQueue::Storage::Throttled;
-use POE::Component::MessageQueue::Storage::DBI;
+use POE::Component::MessageQueue::Storage::EasyDBI;
 use POE::Component::MessageQueue::Logger;
 use Getopt::Long;
 use Carp;
@@ -67,13 +67,13 @@ POE::Component::MessageQueue->new({
 	hostname => $hostname,
 
 	storage => POE::Component::MessageQueue::Storage::Throttled->new({
-		storage => POE::Component::MessageQueue::Storage::DBI->new({
+		storage => POE::Component::MessageQueue::Storage::EasyDBI->new({
 			dsn      => $DB_DSN,
 			username => $DB_USERNAME,
 			password => $DB_PASSWORD,
 		}),
-		throttle_max => $throttle_max
-	}),
+		throttle_max => $throttle_max,
+	})
 });
 
 POE::Kernel->run();

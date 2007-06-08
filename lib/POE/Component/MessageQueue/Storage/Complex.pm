@@ -3,6 +3,8 @@ package POE::Component::MessageQueue::Storage::Complex;
 use base qw(POE::Component::MessageQueue::Storage);
 
 use POE;
+use POE::Component::MessageQueue::Storage::Throttled;
+use POE::Component::MessageQueue::Storage::DBI;
 use POE::Component::MessageQueue::Storage::FileSystem;
 use POE::Component::MessageQueue::Storage::Memory;
 use DBI;
@@ -32,10 +34,16 @@ sub new
 	my $data_dir;
 	my $timeout;
 
+	# we default to 2 because I think its a good idea
+	my $throttle_max = 2;
+
 	if ( ref($args) eq 'HASH' )
 	{
 		$data_dir = $args->{data_dir};
 		$timeout  = $args->{timeout} || 4;
+
+		# only set if the user set to preserve default
+		$throttle_max = $args->{throttle_max} if exists $args->{throttle_max};
 	}
 
 	# create the datadir
@@ -62,11 +70,16 @@ sub new
 	my $front_store = POE::Component::MessageQueue::Storage::Memory->new();
 
 	# setup the DBI backing store
-	my $back_store = POE::Component::MessageQueue::Storage::FileSystem->new({
-		dsn       => $db_dsn,
-		username  => $db_username,
-		password  => $db_password,
-		data_dir  => $data_dir,
+	my $back_store = POE::Component::MessageQueue::Storage::Throttled->new({
+		storage => POE::Component::MessageQueue::Storage::FileSystem->new({
+			info_storage => POE::Component::MessageQueue::Storage::DBI->new({
+				dsn       => $db_dsn,
+				username  => $db_username,
+				password  => $db_password,
+			}),
+			data_dir  => $data_dir,
+		}),
+		throttle_max => $throttle_max,
 	});
 
 	# the delay is half of the given timeout
@@ -252,7 +265,7 @@ __END__
 
 =head1 NAME
 
-POE::Component::MessageQueue::Storage::Complex -- A storage backend that keeps messages in memory but moves them into persistent storage after a given number of seconds.
+POE::Component::MessageQueue::Storage::Complex -- A storage engine that keeps messages in memory but moves them into persistent storage after a given number of seconds.
 
 =head1 SYNOPSIS
 
@@ -265,8 +278,9 @@ POE::Component::MessageQueue::Storage::Complex -- A storage backend that keeps m
 
   POE::Component::MessageQueue->new({
     storage => POE::Component::MessageQueue::Storage::Complex->new({
-      data_dir => $DATA_DIR,
-      timeout  => 2
+      data_dir     => $DATA_DIR,
+      timeout      => 4,
+	  throttle_max => 2
     })
   });
 
@@ -275,17 +289,17 @@ POE::Component::MessageQueue::Storage::Complex -- A storage backend that keeps m
 
 =head1 DESCRIPTION
 
-This storage backend combines two other provided backends.  It uses
+This storage engine combines all the other provided engine.  It uses
 L<POE::Component::MessageQueue::Storage::Memory> as the "front-end storage" and 
 L<POE::Component::MessageQueue::Storage::FileSystem> as the "back-end storage".  Message
 are initially put into the front-end storage and will be moved into the backend
 storage after a given number of seconds.
 
-The L<POE::Component::MessageQueue::Storage::FileSystem> component used internally is
-configured to use L<DBD::SQLite>.  Based on my experience this is the most efficient
-way to use it.
+The L<POE::Component::MessageQueue::Storage::FileSystem> component used internally 
+uses L<POE::Component::MessageQueue::Storage::DBI> with a L<DBD::SQLite> database.
+It is also throttled via L<POE::Component::MessageQueue::Storage::Throttled>.
 
-This storage backend is recommended.  It should provide the best performance while (if
+This is the recommended storage engine.  It should provide the best performance while (if
 configured sanely) still providing a reasonable amount of persistence with little
 risk of eating all your memory under high load.  This is also the only storage
 backend to correctly honor the persistent flag and will only persist those messages
@@ -303,6 +317,10 @@ The directory to store the SQLite database file and the message body's.
 
 The number of seconds a message will remain in non-persistent storage.  Ie. After this many seconds if the message hasn't been removed, it will be put to persistent storage.
 
+=item throttle_max => SCALAR
+
+The max number of messages that can be sent to the DBI store at once.  This value is passed directly to the underlying L<POE::Component::MessageQueue::Storage::Throttled>.
+
 =back
 
 =head1 SEE ALSO
@@ -313,7 +331,10 @@ L<POE::Component::MessageQueue>,
 L<POE::Component::MessageQueue::Storage>,
 L<POE::Component::MessageQueue::Storage::Memory>,
 L<POE::Component::MessageQueue::Storage::FileSystem>,
-L<POE::Component::MessageQueue::Storage::DBI>
+L<POE::Component::MessageQueue::Storage::DBI>,
+L<POE::Component::MessageQueue::Storage::Generic>,
+L<POE::Component::MessageQueue::Storage::Generic::DBI>,
+L<POE::Component::MessageQueue::Storage::Throttled>
 
 =cut
 

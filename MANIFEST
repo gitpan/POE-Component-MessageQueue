@@ -1,7 +1,9 @@
 bin/mq.pl
 examples/mq_complex.pl
 examples/mq_dbi.pl
+examples/mq_easydbi.pl
 examples/mq_filesystem.pl
+examples/mq_generic_dbi.pl
 examples/mq_memory.pl
 examples/stomp_server.pl
 examples/test_recv.pl
@@ -26,8 +28,12 @@ lib/POE/Component/MessageQueue/Queue.pm
 lib/POE/Component/MessageQueue/Storage.pm
 lib/POE/Component/MessageQueue/Storage/Complex.pm
 lib/POE/Component/MessageQueue/Storage/DBI.pm
+lib/POE/Component/MessageQueue/Storage/EasyDBI.pm
 lib/POE/Component/MessageQueue/Storage/FileSystem.pm
+lib/POE/Component/MessageQueue/Storage/Generic.pm
+lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm
 lib/POE/Component/MessageQueue/Storage/Memory.pm
+lib/POE/Component/MessageQueue/Storage/Throttled.pm
 lib/POE/Component/MessageQueue/Subscription.pm
 lib/POE/Component/Server/Stomp.pm
 log.conf
@@ -37,7 +43,9 @@ MANIFEST			This list of files
 MANIFEST.SKIP
 META.yml
 README
+RELEASING
 schema/mysql.sql
 schema/sqlite.sql
 test.sh
 test/Storage/DBI.pm
+test/Storage/Generic/DBI.pm

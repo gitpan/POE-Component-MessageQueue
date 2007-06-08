@@ -178,7 +178,7 @@ __END__
 
 =head1 NAME
 
-POE::Component::MessageQueue::Storage::Memory -- In memory storage backend.
+POE::Component::MessageQueue::Storage::Memory -- In memory storage engine.
 
 =head1 SYNOPSIS
 
@@ -196,10 +196,10 @@ POE::Component::MessageQueue::Storage::Memory -- In memory storage backend.
 
 =head1 DESCRIPTION
 
-A storage backend that keeps all the messages in memory.  Provides no persistence
+A storage engine that keeps all the messages in memory.  Provides no persistence
 what-so-ever.
 
-I wouldn't suggest using this as your main storage backend because if messages aren't
+I wouldn't suggest using this as your main storage engine because if messages aren't
 removed by consumers, it will continue to consume more memory until it explodes.  Check-out
 L<POE::Component::MessageQueue::Complex> which uses this module internally to keep messages
 in memory for a period of time before moving them into persistent storage.
@@ -212,8 +212,11 @@ None to speak of!
 
 L<POE::Component::MessageQueue>,
 L<POE::Component::MessageQueue::Storage>,
-L<POE::Component::MessageQueue::Storage::DBI>,
 L<POE::Component::MessageQueue::Storage::FileSystem>,
+L<POE::Component::MessageQueue::Storage::DBI>,
+L<POE::Component::MessageQueue::Storage::Generic>,
+L<POE::Component::MessageQueue::Storage::Generic::DBI>,
+L<POE::Component::MessageQueue::Storage::Throttled>,
 L<POE::Component::MessageQueue::Storage::Complex>
 
 =cut

@@ -63,7 +63,22 @@ sub send_frame
 	my $frame = shift;
 
 	my $client_session = $poe_kernel->alias_resolve( $self->{client_id} );
-	$client_session->get_heap()->{client}->put( $frame->as_string() . "\n" );
+
+	# Check to see if the client's session is still around
+	if ( defined $client_session )
+	{
+		my $client = $client_session->get_heap()->{client};
+
+		# Check to see if the socket's Wheel is still around
+		if ( defined $client )
+		{
+			$client->put( $frame->as_string() . "\n" );
+
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 sub connect
@@ -98,6 +113,13 @@ sub connect
 		},
 	});
 	$self->send_frame( $response );
+}
+
+sub shutdown
+{
+	my $self = shift;
+
+	$poe_kernel->post( $self->{client_id}, "shutdown" );
 }
 
 1;

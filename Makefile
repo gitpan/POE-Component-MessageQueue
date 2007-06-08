@@ -18,9 +18,9 @@
 #     NAME => q[POE::Component::MessageQueue]
 #     NO_META => q[1]
 #     PL_FILES => {  }
-#     PREREQ_PM => { POE::Component::Logger=>q[0], IO::File=>q[0], DBD::SQLite=>q[1.13], IO::String=>q[0], POE::Component::Server::TCP=>q[0], Data::Dumper=>q[0], Carp=>q[0], Test::More=>q[0], POE::Wheel::ReadWrite=>q[0], File::Temp=>q[0], Net::Stomp=>q[0], DBI=>q[0] }
-#     VERSION => q[0.1.2]
-#     dist => { PREOP=>q[$(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"] }
+#     PREREQ_PM => { POE::Component::Logger=>q[0], IO::File=>q[0], IO::String=>q[0], DBD::SQLite=>q[1.13], POE::Component::Server::TCP=>q[0], Data::Dumper=>q[0], Carp=>q[0], Test::More=>q[0], POE::Wheel::ReadWrite=>q[0], File::Temp=>q[0], POE::Component::Generic=>q[0.1001], Net::Stomp=>q[0], POE=>q[0.38], DBI=>q[0] }
+#     VERSION => q[0.1.3]
+#     dist => { PREOP=>q[$(PERL) -I. "-MModule::Install::Admin" -e "dist_preop(q($(DISTVNAME)))"] }
 #     test => { TESTS=>q[] }
 
 # --- MakeMaker post_initialize section:
@@ -61,11 +61,11 @@ DIRFILESEP = /
 DFSEP = $(DIRFILESEP)
 NAME = POE::Component::MessageQueue
 NAME_SYM = POE_Component_MessageQueue
-VERSION = 0.1.2
+VERSION = 0.1.3
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_1_2
+VERSION_SYM = 0_1_3
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.1.2
+XS_VERSION = 0.1.3
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -162,7 +162,7 @@ MAN1PODS =
 MAN3PODS = lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
-	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	lib/POE/Component/Server/Stomp.pm
@@ -195,35 +195,59 @@ TO_INST_PM = lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
+	lib/POE/Component/MessageQueue/Storage/Generic.pm \
+	lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
+	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Subscription.pm \
-	lib/POE/Component/Server/Stomp.pm
+	lib/POE/Component/Server/Stomp.pm \
+	lib/POE/Component/Server/revert.patch \
+	test_dbi.pl \
+	test_generic.pl \
+	test_generic2.pl
 
-PM_TO_BLIB = lib/POE/Component/MessageQueue/Storage/Memory.pm \
+PM_TO_BLIB = lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/Generic.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/Generic.pm \
+	lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	lib/POE/Component/MessageQueue.pm \
 	blib/lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Subscription.pm \
 	blib/lib/POE/Component/MessageQueue/Subscription.pm \
+	test_dbi.pl \
+	$(INST_LIB)/POE/Component/test_dbi.pl \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
-	lib/POE/Component/MessageQueue/Logger.pm \
-	blib/lib/POE/Component/MessageQueue/Logger.pm \
-	lib/POE/Component/Server/Stomp.pm \
-	blib/lib/POE/Component/Server/Stomp.pm \
+	lib/POE/Component/Server/revert.patch \
+	blib/lib/POE/Component/Server/revert.patch \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Complex.pm \
+	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	test_generic2.pl \
+	$(INST_LIB)/POE/Component/test_generic2.pl \
+	lib/POE/Component/MessageQueue/Client.pm \
+	blib/lib/POE/Component/MessageQueue/Client.pm \
+	lib/POE/Component/Server/Stomp.pm \
+	blib/lib/POE/Component/Server/Stomp.pm \
+	lib/POE/Component/MessageQueue/Logger.pm \
+	blib/lib/POE/Component/MessageQueue/Logger.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
 	blib/lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Message.pm \
 	blib/lib/POE/Component/MessageQueue/Message.pm \
-	lib/POE/Component/MessageQueue/Storage/DBI.pm \
-	blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
+	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Queue.pm \
 	blib/lib/POE/Component/MessageQueue/Queue.pm \
-	lib/POE/Component/MessageQueue/Client.pm \
-	blib/lib/POE/Component/MessageQueue/Client.pm
+	test_generic.pl \
+	$(INST_LIB)/POE/Component/test_generic.pl
 
 
 # --- MakeMaker platform_constants section:
@@ -282,7 +306,7 @@ ZIPFLAGS = -r
 COMPRESS = gzip --best
 SUFFIX = .gz
 SHAR = shar
-PREOP = $(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"
+PREOP = $(PERL) -I. "-MModule::Install::Admin" -e "dist_preop(q($(DISTVNAME)))"
 POSTOP = $(NOECHO) $(NOOP)
 TO_UNIX = $(NOECHO) $(NOOP)
 CI = ci -u
@@ -290,7 +314,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = POE-Component-MessageQueue
-DISTVNAME = POE-Component-MessageQueue-0.1.2
+DISTVNAME = POE-Component-MessageQueue-0.1.3
 
 
 # --- MakeMaker macro section:
@@ -445,14 +469,14 @@ POD2MAN = $(POD2MAN_EXE)
 manifypods : pure_all  \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	lib/POE/Component/MessageQueue.pm \
-	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	lib/POE/Component/Server/Stomp.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	lib/POE/Component/MessageQueue.pm \
-	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	lib/POE/Component/Server/Stomp.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
@@ -460,7 +484,7 @@ manifypods : pure_all  \
 	$(NOECHO) $(POD2MAN) --section=3 --perm_rw=$(PERM_RW) \
 	  lib/POE/Component/MessageQueue/Storage/Memory.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Memory.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue.pm $(INST_MAN3DIR)/POE::Component::MessageQueue.$(MAN3EXT) \
-	  lib/POE/Component/MessageQueue/Storage/DBI.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::DBI.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Storage/EasyDBI.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::EasyDBI.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/FileSystem.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::FileSystem.$(MAN3EXT) \
 	  lib/POE/Component/Server/Stomp.pm $(INST_MAN3DIR)/POE::Component::Server::Stomp.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/Complex.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Complex.$(MAN3EXT) \
@@ -829,7 +853,7 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,2,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,3,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>A Perl message queue based on POE that uses STOMP as its communication protocol.</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>David Snopek</AUTHOR>' >> $(DISTNAME).ppd
@@ -842,6 +866,8 @@ ppd:
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="IO-File" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="IO-String" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Net-Stomp" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE" VERSION="0,38,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Component-Generic" VERSION="0,1001,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Component-Logger" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Component-Server-TCP" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Wheel-ReadWrite" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
@@ -857,18 +883,26 @@ ppd:
 
 pm_to_blib : $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', '\''$(PM_FILTER)'\'')' \
+	  lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm blib/lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
+	  lib/POE/Component/MessageQueue/Storage/Generic.pm blib/lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	  lib/POE/Component/MessageQueue/Storage/Memory.pm blib/lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	  lib/POE/Component/MessageQueue.pm blib/lib/POE/Component/MessageQueue.pm \
 	  lib/POE/Component/MessageQueue/Subscription.pm blib/lib/POE/Component/MessageQueue/Subscription.pm \
+	  test_dbi.pl $(INST_LIB)/POE/Component/test_dbi.pl \
 	  lib/POE/Component/MessageQueue/Storage/FileSystem.pm blib/lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
-	  lib/POE/Component/MessageQueue/Logger.pm blib/lib/POE/Component/MessageQueue/Logger.pm \
-	  lib/POE/Component/Server/Stomp.pm blib/lib/POE/Component/Server/Stomp.pm \
+	  lib/POE/Component/Server/revert.patch blib/lib/POE/Component/Server/revert.patch \
 	  lib/POE/Component/MessageQueue/Storage/Complex.pm blib/lib/POE/Component/MessageQueue/Storage/Complex.pm \
+	  lib/POE/Component/MessageQueue/Storage/DBI.pm blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	  test_generic2.pl $(INST_LIB)/POE/Component/test_generic2.pl \
+	  lib/POE/Component/MessageQueue/Client.pm blib/lib/POE/Component/MessageQueue/Client.pm \
+	  lib/POE/Component/Server/Stomp.pm blib/lib/POE/Component/Server/Stomp.pm \
+	  lib/POE/Component/MessageQueue/Logger.pm blib/lib/POE/Component/MessageQueue/Logger.pm \
 	  lib/POE/Component/MessageQueue/Storage.pm blib/lib/POE/Component/MessageQueue/Storage.pm \
 	  lib/POE/Component/MessageQueue/Message.pm blib/lib/POE/Component/MessageQueue/Message.pm \
-	  lib/POE/Component/MessageQueue/Storage/DBI.pm blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	  lib/POE/Component/MessageQueue/Storage/EasyDBI.pm blib/lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
+	  lib/POE/Component/MessageQueue/Storage/Throttled.pm blib/lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	  lib/POE/Component/MessageQueue/Queue.pm blib/lib/POE/Component/MessageQueue/Queue.pm \
-	  lib/POE/Component/MessageQueue/Client.pm blib/lib/POE/Component/MessageQueue/Client.pm 
+	  test_generic.pl $(INST_LIB)/POE/Component/test_generic.pl 
 	$(NOECHO) $(TOUCH) pm_to_blib
 
 
@@ -879,13 +913,13 @@ pm_to_blib : $(TO_INST_PM)
 
 
 # End.
-# Postamble by Module::Install 0.62
+# Postamble by Module::Install 0.65
 # --- Module::Install::Admin::Makefile section:
 
 realclean purge ::
 	$(RM_F) $(DISTVNAME).tar$(SUFFIX)
 	$(RM_RF) inc MANIFEST.bak _build
-	$(PERL) -I. -MModule::Install::Admin -e "remove_meta()"
+	$(PERL) -I. "-MModule::Install::Admin" -e "remove_meta()"
 
 reset :: purge
 
