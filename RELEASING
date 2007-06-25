@@ -14,3 +14,8 @@ TODO for making a release.
 
  * Run 'make dist'.
 
+ * Go to: http://pause.perl.org
+
+ * Login and click on 'Upload a file to CPAN'.  Use one of the methods described to 
+   upload the TAR-GZ file.
+
