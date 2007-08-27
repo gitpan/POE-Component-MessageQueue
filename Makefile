@@ -1,7 +1,7 @@
 # This Makefile is for the POE::Component::MessageQueue extension to perl.
 #
 # It was generated automatically by MakeMaker version
-# 6.30 (Revision: Revision: 4535 ) from the contents of
+# 6.30_01 (Revision: Revision: 4535 ) from the contents of
 # Makefile.PL. Don't edit this file, edit Makefile.PL instead.
 #
 #       ANY CHANGES MADE HERE WILL BE LOST!
@@ -18,9 +18,9 @@
 #     NAME => q[POE::Component::MessageQueue]
 #     NO_META => q[1]
 #     PL_FILES => {  }
-#     PREREQ_PM => { POE::Component::Logger=>q[0], IO::File=>q[0], IO::String=>q[0], DBD::SQLite=>q[1.13], POE::Component::Server::TCP=>q[0], Data::Dumper=>q[0], Carp=>q[0], Test::More=>q[0], POE::Wheel::ReadWrite=>q[0], File::Temp=>q[0], POE::Component::Generic=>q[0.1001], Net::Stomp=>q[0], POE=>q[0.38], DBI=>q[0] }
-#     VERSION => q[0.1.4]
-#     dist => { PREOP=>q[$(PERL) -I. "-MModule::Install::Admin" -e "dist_preop(q($(DISTVNAME)))"] }
+#     PREREQ_PM => { POE::Component::Logger=>q[0], IO::File=>q[0], IO::String=>q[0], DBD::SQLite=>q[1.13], POE::Component::Server::TCP=>q[0], Data::Dumper=>q[0], Exception::Class::TryCatch=>q[0], Carp=>q[0], Test::More=>q[0], POE::Wheel::ReadWrite=>q[0], File::Temp=>q[0], POE::Component::Generic=>q[0.1001], Net::Stomp=>q[0], DBI=>q[0], POE=>q[0.38], Exception::Class::DBI=>q[0] }
+#     VERSION => q[0.1.5]
+#     dist => { PREOP=>q[$(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"] }
 #     test => { TESTS=>q[] }
 
 # --- MakeMaker post_initialize section:
@@ -28,31 +28,31 @@
 
 # --- MakeMaker const_config section:
 
-# These definitions are from config.sh (via /usr/lib/perl5/5.8.8/i686-linux/Config.pm)
+# These definitions are from config.sh (via /usr/lib/perl/5.8/Config.pm)
 
 # They may have been overridden via Makefile.PL or on the command line
 AR = ar
-CC = i686-pc-linux-gnu-gcc
+CC = cc
 CCCDLFLAGS = -fPIC
-CCDLFLAGS = -rdynamic
+CCDLFLAGS = -Wl,-E
 DLEXT = so
 DLSRC = dl_dlopen.xs
-LD = i686-pc-linux-gnu-gcc
+LD = cc
 LDDLFLAGS = -shared -L/usr/local/lib
 LDFLAGS =  -L/usr/local/lib
-LIBC = /lib/libc-2.3.5.so
+LIBC = /lib/libc-2.3.6.so
 LIB_EXT = .a
 OBJ_EXT = .o
 OSNAME = linux
-OSVERS = 2.6.15-gentoo-r1
+OSVERS = 2.6.18.3
 RANLIB = :
-SITELIBEXP = /usr/lib/perl5/site_perl/5.8.8
-SITEARCHEXP = /usr/lib/perl5/site_perl/5.8.8/i686-linux
+SITELIBEXP = /usr/local/share/perl/5.8.8
+SITEARCHEXP = /usr/local/lib/perl/5.8.8
 SO = so
 EXE_EXT = 
 FULL_AR = /usr/bin/ar
-VENDORARCHEXP = /usr/lib/perl5/vendor_perl/5.8.8/i686-linux
-VENDORLIBEXP = /usr/lib/perl5/vendor_perl/5.8.8
+VENDORARCHEXP = /usr/lib/perl5
+VENDORLIBEXP = /usr/share/perl5
 
 
 # --- MakeMaker constants section:
@@ -61,11 +61,11 @@ DIRFILESEP = /
 DFSEP = $(DIRFILESEP)
 NAME = POE::Component::MessageQueue
 NAME_SYM = POE_Component_MessageQueue
-VERSION = 0.1.4
+VERSION = 0.1.5
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_1_4
+VERSION_SYM = 0_1_5
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.1.4
+XS_VERSION = 0.1.5
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -74,56 +74,60 @@ INST_BIN = blib/bin
 INST_LIB = blib/lib
 INST_MAN1DIR = blib/man1
 INST_MAN3DIR = blib/man3
-MAN1EXT = 1
+MAN1EXT = 1p
 MAN3EXT = 3pm
 INSTALLDIRS = site
 DESTDIR = 
-PREFIX = $(SITEPREFIX)
-PERLPREFIX = /usr
-SITEPREFIX = /usr
-VENDORPREFIX = /usr
-INSTALLPRIVLIB = /usr/lib/perl5/5.8.8
+PREFIX = /usr
+PERLPREFIX = $(PREFIX)
+SITEPREFIX = $(PREFIX)/local
+VENDORPREFIX = $(PREFIX)
+INSTALLPRIVLIB = $(PERLPREFIX)/share/perl/5.8
 DESTINSTALLPRIVLIB = $(DESTDIR)$(INSTALLPRIVLIB)
-INSTALLSITELIB = /usr/lib/perl5/site_perl/5.8.8
+INSTALLSITELIB = $(SITEPREFIX)/share/perl/5.8.8
 DESTINSTALLSITELIB = $(DESTDIR)$(INSTALLSITELIB)
-INSTALLVENDORLIB = /usr/lib/perl5/vendor_perl/5.8.8
+INSTALLVENDORLIB = $(VENDORPREFIX)/share/perl5
 DESTINSTALLVENDORLIB = $(DESTDIR)$(INSTALLVENDORLIB)
-INSTALLARCHLIB = /usr/lib/perl5/5.8.8/i686-linux
+INSTALLARCHLIB = $(PERLPREFIX)/lib/perl/5.8
 DESTINSTALLARCHLIB = $(DESTDIR)$(INSTALLARCHLIB)
-INSTALLSITEARCH = /usr/lib/perl5/site_perl/5.8.8/i686-linux
+INSTALLSITEARCH = $(SITEPREFIX)/lib/perl/5.8.8
 DESTINSTALLSITEARCH = $(DESTDIR)$(INSTALLSITEARCH)
-INSTALLVENDORARCH = /usr/lib/perl5/vendor_perl/5.8.8/i686-linux
+INSTALLVENDORARCH = $(VENDORPREFIX)/lib/perl5
 DESTINSTALLVENDORARCH = $(DESTDIR)$(INSTALLVENDORARCH)
-INSTALLBIN = /usr/bin
+INSTALLBIN = $(PERLPREFIX)/bin
 DESTINSTALLBIN = $(DESTDIR)$(INSTALLBIN)
-INSTALLSITEBIN = /usr/bin
+INSTALLSITEBIN = $(SITEPREFIX)/bin
 DESTINSTALLSITEBIN = $(DESTDIR)$(INSTALLSITEBIN)
-INSTALLVENDORBIN = /usr/bin
+INSTALLVENDORBIN = $(VENDORPREFIX)/bin
 DESTINSTALLVENDORBIN = $(DESTDIR)$(INSTALLVENDORBIN)
-INSTALLSCRIPT = /usr/bin
+INSTALLSCRIPT = $(PERLPREFIX)/bin
 DESTINSTALLSCRIPT = $(DESTDIR)$(INSTALLSCRIPT)
-INSTALLMAN1DIR = /usr/share/man/man1
+INSTALLSITESCRIPT = $(SITEPREFIX)/bin
+DESTINSTALLSITESCRIPT = $(DESTDIR)$(INSTALLSITESCRIPT)
+INSTALLVENDORSCRIPT = $(VENDORPREFIX)/bin
+DESTINSTALLVENDORSCRIPT = $(DESTDIR)$(INSTALLVENDORSCRIPT)
+INSTALLMAN1DIR = $(PERLPREFIX)/share/man/man1
 DESTINSTALLMAN1DIR = $(DESTDIR)$(INSTALLMAN1DIR)
-INSTALLSITEMAN1DIR = /usr/share/man/man1
+INSTALLSITEMAN1DIR = $(SITEPREFIX)/man/man1
 DESTINSTALLSITEMAN1DIR = $(DESTDIR)$(INSTALLSITEMAN1DIR)
-INSTALLVENDORMAN1DIR = /usr/share/man/man1
+INSTALLVENDORMAN1DIR = $(VENDORPREFIX)/share/man/man1
 DESTINSTALLVENDORMAN1DIR = $(DESTDIR)$(INSTALLVENDORMAN1DIR)
-INSTALLMAN3DIR = /usr/share/man/man3
+INSTALLMAN3DIR = $(PERLPREFIX)/share/man/man3
 DESTINSTALLMAN3DIR = $(DESTDIR)$(INSTALLMAN3DIR)
-INSTALLSITEMAN3DIR = /usr/share/man/man3
+INSTALLSITEMAN3DIR = $(SITEPREFIX)/man/man3
 DESTINSTALLSITEMAN3DIR = $(DESTDIR)$(INSTALLSITEMAN3DIR)
-INSTALLVENDORMAN3DIR = /usr/share/man/man3
+INSTALLVENDORMAN3DIR = $(VENDORPREFIX)/share/man/man3
 DESTINSTALLVENDORMAN3DIR = $(DESTDIR)$(INSTALLVENDORMAN3DIR)
 PERL_LIB =
-PERL_ARCHLIB = /usr/lib/perl5/5.8.8/i686-linux
+PERL_ARCHLIB = /usr/lib/perl/5.8
 LIBPERL_A = libperl.a
 FIRST_MAKEFILE = Makefile
 MAKEFILE_OLD = Makefile.old
 MAKE_APERL_FILE = Makefile.aperl
 PERLMAINCC = $(CC)
-PERL_INC = /usr/lib/perl5/5.8.8/i686-linux/CORE
-PERL = /usr/bin/perl5.8.8 "-Iinc"
-FULLPERL = /usr/bin/perl5.8.8 "-Iinc"
+PERL_INC = /usr/lib/perl/5.8/CORE
+PERL = /usr/bin/perl "-Iinc"
+FULLPERL = /usr/bin/perl "-Iinc"
 ABSPERL = $(PERL)
 PERLRUN = $(PERL)
 FULLPERLRUN = $(FULLPERL)
@@ -135,8 +139,8 @@ PERL_CORE = 0
 PERM_RW = 644
 PERM_RWX = 755
 
-MAKEMAKER   = /usr/lib/perl5/5.8.8/ExtUtils/MakeMaker.pm
-MM_VERSION  = 6.30
+MAKEMAKER   = /usr/share/perl/5.8/ExtUtils/MakeMaker.pm
+MM_VERSION  = 6.30_01
 MM_REVISION = Revision: 4535 
 
 # FULLEXT = Pathname for extension directory (eg Foo/Bar/Oracle).
@@ -206,40 +210,30 @@ TO_INST_PM = lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Subscription.pm \
-	lib/POE/Component/Server/Stomp.pm \
-	lib/POE/Component/Server/revert.patch \
-	test_dbi.pl \
-	test_generic.pl \
-	test_generic2.pl
+	lib/POE/Component/Server/Stomp.pm
 
 PM_TO_BLIB = lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
-	lib/POE/Component/MessageQueue/Storage/Generic.pm \
-	blib/lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Memory.pm \
+	lib/POE/Component/MessageQueue/Storage/Generic.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue.pm \
 	blib/lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Subscription.pm \
 	blib/lib/POE/Component/MessageQueue/Subscription.pm \
-	test_dbi.pl \
-	$(INST_LIB)/POE/Component/test_dbi.pl \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
-	lib/POE/Component/Server/revert.patch \
-	blib/lib/POE/Component/Server/revert.patch \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	lib/POE/Component/MessageQueue/Storage/DBI.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
-	test_generic2.pl \
-	$(INST_LIB)/POE/Component/test_generic2.pl \
 	lib/POE/Component/MessageQueue/Client.pm \
 	blib/lib/POE/Component/MessageQueue/Client.pm \
-	lib/POE/Component/Server/Stomp.pm \
-	blib/lib/POE/Component/Server/Stomp.pm \
 	lib/POE/Component/MessageQueue/Logger.pm \
 	blib/lib/POE/Component/MessageQueue/Logger.pm \
+	lib/POE/Component/Server/Stomp.pm \
+	blib/lib/POE/Component/Server/Stomp.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
 	blib/lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Message.pm \
@@ -249,13 +243,11 @@ PM_TO_BLIB = lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Queue.pm \
-	blib/lib/POE/Component/MessageQueue/Queue.pm \
-	test_generic.pl \
-	$(INST_LIB)/POE/Component/test_generic.pl
+	blib/lib/POE/Component/MessageQueue/Queue.pm
 
 
 # --- MakeMaker platform_constants section:
-MM_Unix_VERSION = 1.50
+MM_Unix_VERSION = 1.50_01
 PERL_MALLOC_DEF = -DPERL_EXTMALLOC_DEF -Dmalloc=Perl_malloc -Dfree=Perl_mfree -Drealloc=Perl_realloc -Dcalloc=Perl_calloc
 
 
@@ -310,7 +302,7 @@ ZIPFLAGS = -r
 COMPRESS = gzip --best
 SUFFIX = .gz
 SHAR = shar
-PREOP = $(PERL) -I. "-MModule::Install::Admin" -e "dist_preop(q($(DISTVNAME)))"
+PREOP = $(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"
 POSTOP = $(NOECHO) $(NOOP)
 TO_UNIX = $(NOECHO) $(NOOP)
 CI = ci -u
@@ -318,7 +310,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = POE-Component-MessageQueue
-DISTVNAME = POE-Component-MessageQueue-0.1.4
+DISTVNAME = POE-Component-MessageQueue-0.1.5
 
 
 # --- MakeMaker macro section:
@@ -472,8 +464,8 @@ POD2MAN = $(POD2MAN_EXE)
 
 manifypods : pure_all  \
 	lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
-	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
+	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	lib/POE/Component/Server/Stomp.pm \
@@ -483,8 +475,8 @@ manifypods : pure_all  \
 	lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
-	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
+	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	lib/POE/Component/Server/Stomp.pm \
@@ -493,10 +485,10 @@ manifypods : pure_all  \
 	lib/POE/Component/MessageQueue/Storage/DBI.pm \
 	lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm
-	$(NOECHO) $(POD2MAN) --section=3 --perm_rw=$(PERM_RW) \
+	$(NOECHO) $(POD2MAN) --section=$(MAN3EXT) --perm_rw=$(PERM_RW) \
 	  lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Generic::DBI.$(MAN3EXT) \
-	  lib/POE/Component/MessageQueue/Storage/Generic.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Generic.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/Memory.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Memory.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Storage/Generic.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Generic.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue.pm $(INST_MAN3DIR)/POE::Component::MessageQueue.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/FileSystem.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::FileSystem.$(MAN3EXT) \
 	  lib/POE/Component/Server/Stomp.pm $(INST_MAN3DIR)/POE::Component::Server::Stomp.$(MAN3EXT) \
@@ -716,9 +708,7 @@ doc__install : doc_site_install
 	$(NOECHO) $(ECHO) INSTALLDIRS not defined, defaulting to INSTALLDIRS=site
 
 pure_perl_install ::
-	$(NOECHO) $(MOD_INSTALL) \
-		read $(PERL_ARCHLIB)/auto/$(FULLEXT)/.packlist \
-		write $(DESTINSTALLARCHLIB)/auto/$(FULLEXT)/.packlist \
+	$(NOECHO) umask 022; $(MOD_INSTALL) \
 		$(INST_LIB) $(DESTINSTALLPRIVLIB) \
 		$(INST_ARCHLIB) $(DESTINSTALLARCHLIB) \
 		$(INST_BIN) $(DESTINSTALLBIN) \
@@ -730,74 +720,53 @@ pure_perl_install ::
 
 
 pure_site_install ::
-	$(NOECHO) $(MOD_INSTALL) \
+	$(NOECHO) umask 02; $(MOD_INSTALL) \
 		read $(SITEARCHEXP)/auto/$(FULLEXT)/.packlist \
 		write $(DESTINSTALLSITEARCH)/auto/$(FULLEXT)/.packlist \
 		$(INST_LIB) $(DESTINSTALLSITELIB) \
 		$(INST_ARCHLIB) $(DESTINSTALLSITEARCH) \
 		$(INST_BIN) $(DESTINSTALLSITEBIN) \
-		$(INST_SCRIPT) $(DESTINSTALLSCRIPT) \
+		$(INST_SCRIPT) $(DESTINSTALLSITESCRIPT) \
 		$(INST_MAN1DIR) $(DESTINSTALLSITEMAN1DIR) \
 		$(INST_MAN3DIR) $(DESTINSTALLSITEMAN3DIR)
 	$(NOECHO) $(WARN_IF_OLD_PACKLIST) \
 		$(PERL_ARCHLIB)/auto/$(FULLEXT)
 
 pure_vendor_install ::
-	$(NOECHO) $(MOD_INSTALL) \
-		read $(VENDORARCHEXP)/auto/$(FULLEXT)/.packlist \
-		write $(DESTINSTALLVENDORARCH)/auto/$(FULLEXT)/.packlist \
+	$(NOECHO) umask 022; $(MOD_INSTALL) \
 		$(INST_LIB) $(DESTINSTALLVENDORLIB) \
 		$(INST_ARCHLIB) $(DESTINSTALLVENDORARCH) \
 		$(INST_BIN) $(DESTINSTALLVENDORBIN) \
-		$(INST_SCRIPT) $(DESTINSTALLSCRIPT) \
+		$(INST_SCRIPT) $(DESTINSTALLVENDORSCRIPT) \
 		$(INST_MAN1DIR) $(DESTINSTALLVENDORMAN1DIR) \
 		$(INST_MAN3DIR) $(DESTINSTALLVENDORMAN3DIR)
 
 doc_perl_install ::
-	$(NOECHO) $(ECHO) Appending installation info to $(DESTINSTALLARCHLIB)/perllocal.pod
-	-$(NOECHO) $(MKPATH) $(DESTINSTALLARCHLIB)
-	-$(NOECHO) $(DOC_INSTALL) \
-		"Module" "$(NAME)" \
-		"installed into" "$(INSTALLPRIVLIB)" \
-		LINKTYPE "$(LINKTYPE)" \
-		VERSION "$(VERSION)" \
-		EXE_FILES "$(EXE_FILES)" \
-		>> $(DESTINSTALLARCHLIB)/perllocal.pod
 
 doc_site_install ::
-	$(NOECHO) $(ECHO) Appending installation info to $(DESTINSTALLARCHLIB)/perllocal.pod
-	-$(NOECHO) $(MKPATH) $(DESTINSTALLARCHLIB)
-	-$(NOECHO) $(DOC_INSTALL) \
+	$(NOECHO) $(ECHO) Appending installation info to $(DESTINSTALLSITEARCH)/perllocal.pod
+	-$(NOECHO) umask 02; $(MKPATH) $(DESTINSTALLSITEARCH)
+	-$(NOECHO) umask 02; $(DOC_INSTALL) \
 		"Module" "$(NAME)" \
 		"installed into" "$(INSTALLSITELIB)" \
 		LINKTYPE "$(LINKTYPE)" \
 		VERSION "$(VERSION)" \
 		EXE_FILES "$(EXE_FILES)" \
-		>> $(DESTINSTALLARCHLIB)/perllocal.pod
+		>> $(DESTINSTALLSITEARCH)/perllocal.pod
 
 doc_vendor_install ::
-	$(NOECHO) $(ECHO) Appending installation info to $(DESTINSTALLARCHLIB)/perllocal.pod
-	-$(NOECHO) $(MKPATH) $(DESTINSTALLARCHLIB)
-	-$(NOECHO) $(DOC_INSTALL) \
-		"Module" "$(NAME)" \
-		"installed into" "$(INSTALLVENDORLIB)" \
-		LINKTYPE "$(LINKTYPE)" \
-		VERSION "$(VERSION)" \
-		EXE_FILES "$(EXE_FILES)" \
-		>> $(DESTINSTALLARCHLIB)/perllocal.pod
 
 
 uninstall :: uninstall_from_$(INSTALLDIRS)dirs
 	$(NOECHO) $(NOOP)
 
 uninstall_from_perldirs ::
-	$(NOECHO) $(UNINSTALL) $(PERL_ARCHLIB)/auto/$(FULLEXT)/.packlist
 
 uninstall_from_sitedirs ::
 	$(NOECHO) $(UNINSTALL) $(SITEARCHEXP)/auto/$(FULLEXT)/.packlist
 
 uninstall_from_vendordirs ::
-	$(NOECHO) $(UNINSTALL) $(VENDORARCHEXP)/auto/$(FULLEXT)/.packlist
+
 
 
 # --- MakeMaker force section:
@@ -829,7 +798,7 @@ $(FIRST_MAKEFILE) : Makefile.PL $(CONFIGDEP)
 
 # --- MakeMaker makeaperl section ---
 MAP_TARGET    = perl
-FULLPERL      = /usr/bin/perl5.8.8
+FULLPERL      = /usr/bin/perl
 
 $(MAP_TARGET) :: static $(MAKE_APERL_FILE)
 	$(MAKE) $(USEMAKEFILE) $(MAKE_APERL_FILE) $@
@@ -869,7 +838,7 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,4,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,5,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>A Perl message queue based on POE that uses STOMP as its communication protocol.</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>David Snopek</AUTHOR>' >> $(DISTNAME).ppd
@@ -878,6 +847,8 @@ ppd:
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="DBD-SQLite" VERSION="1,13,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="DBI" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Data-Dumper" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Exception-Class-DBI" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Exception-Class-TryCatch" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="File-Temp" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="IO-File" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="IO-String" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
@@ -889,7 +860,7 @@ ppd:
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Wheel-ReadWrite" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Test-More" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <OS NAME="$(OSNAME)" />' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="i686-linux" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="i486-linux-gnu-thread-multi" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <CODEBASE HREF="" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    </IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '</SOFTPKG>' >> $(DISTNAME).ppd
@@ -900,25 +871,21 @@ ppd:
 pm_to_blib : $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', '\''$(PM_FILTER)'\'')' \
 	  lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm blib/lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
-	  lib/POE/Component/MessageQueue/Storage/Generic.pm blib/lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	  lib/POE/Component/MessageQueue/Storage/Memory.pm blib/lib/POE/Component/MessageQueue/Storage/Memory.pm \
+	  lib/POE/Component/MessageQueue/Storage/Generic.pm blib/lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	  lib/POE/Component/MessageQueue.pm blib/lib/POE/Component/MessageQueue.pm \
 	  lib/POE/Component/MessageQueue/Subscription.pm blib/lib/POE/Component/MessageQueue/Subscription.pm \
-	  test_dbi.pl $(INST_LIB)/POE/Component/test_dbi.pl \
 	  lib/POE/Component/MessageQueue/Storage/FileSystem.pm blib/lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
-	  lib/POE/Component/Server/revert.patch blib/lib/POE/Component/Server/revert.patch \
 	  lib/POE/Component/MessageQueue/Storage/Complex.pm blib/lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	  lib/POE/Component/MessageQueue/Storage/DBI.pm blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
-	  test_generic2.pl $(INST_LIB)/POE/Component/test_generic2.pl \
 	  lib/POE/Component/MessageQueue/Client.pm blib/lib/POE/Component/MessageQueue/Client.pm \
-	  lib/POE/Component/Server/Stomp.pm blib/lib/POE/Component/Server/Stomp.pm \
 	  lib/POE/Component/MessageQueue/Logger.pm blib/lib/POE/Component/MessageQueue/Logger.pm \
+	  lib/POE/Component/Server/Stomp.pm blib/lib/POE/Component/Server/Stomp.pm \
 	  lib/POE/Component/MessageQueue/Storage.pm blib/lib/POE/Component/MessageQueue/Storage.pm \
 	  lib/POE/Component/MessageQueue/Message.pm blib/lib/POE/Component/MessageQueue/Message.pm \
 	  lib/POE/Component/MessageQueue/Storage/EasyDBI.pm blib/lib/POE/Component/MessageQueue/Storage/EasyDBI.pm \
 	  lib/POE/Component/MessageQueue/Storage/Throttled.pm blib/lib/POE/Component/MessageQueue/Storage/Throttled.pm \
-	  lib/POE/Component/MessageQueue/Queue.pm blib/lib/POE/Component/MessageQueue/Queue.pm \
-	  test_generic.pl $(INST_LIB)/POE/Component/test_generic.pl 
+	  lib/POE/Component/MessageQueue/Queue.pm blib/lib/POE/Component/MessageQueue/Queue.pm 
 	$(NOECHO) $(TOUCH) pm_to_blib
 
 
@@ -929,13 +896,13 @@ pm_to_blib : $(TO_INST_PM)
 
 
 # End.
-# Postamble by Module::Install 0.65
+# Postamble by Module::Install 0.64
 # --- Module::Install::Admin::Makefile section:
 
 realclean purge ::
 	$(RM_F) $(DISTVNAME).tar$(SUFFIX)
 	$(RM_RF) inc MANIFEST.bak _build
-	$(PERL) -I. "-MModule::Install::Admin" -e "remove_meta()"
+	$(PERL) -I. -MModule::Install::Admin -e "remove_meta()"
 
 reset :: purge
 

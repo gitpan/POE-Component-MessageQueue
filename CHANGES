@@ -1,0 +1,11 @@
+
+== 0.1.5 -- 8/27/2007 ==
+
+ * Added missing dependancies to Makefile.PL
+
+== 0.1.4 -- 6/25/2007 ==
+
+ * Added crash.log and daemonizing support to mq.pl script.
+ * Added documentation for mq.pl script.
+ * Various little documentation fixes.
+
