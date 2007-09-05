@@ -19,7 +19,7 @@
 #     NO_META => q[1]
 #     PL_FILES => {  }
 #     PREREQ_PM => { POE::Component::Logger=>q[0], IO::File=>q[0], IO::String=>q[0], DBD::SQLite=>q[1.13], POE::Component::Server::TCP=>q[0], Data::Dumper=>q[0], Exception::Class::TryCatch=>q[0], Carp=>q[0], Test::More=>q[0], POE::Wheel::ReadWrite=>q[0], File::Temp=>q[0], POE::Component::Generic=>q[0.1001], Net::Stomp=>q[0], DBI=>q[0], POE=>q[0.38], Exception::Class::DBI=>q[0] }
-#     VERSION => q[0.1.5]
+#     VERSION => q[0.1.6]
 #     dist => { PREOP=>q[$(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"] }
 #     test => { TESTS=>q[] }
 
@@ -61,11 +61,11 @@ DIRFILESEP = /
 DFSEP = $(DIRFILESEP)
 NAME = POE::Component::MessageQueue
 NAME_SYM = POE_Component_MessageQueue
-VERSION = 0.1.5
+VERSION = 0.1.6
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_1_5
+VERSION_SYM = 0_1_6
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.1.5
+XS_VERSION = 0.1.6
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -310,7 +310,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = POE-Component-MessageQueue
-DISTVNAME = POE-Component-MessageQueue-0.1.5
+DISTVNAME = POE-Component-MessageQueue-0.1.6
 
 
 # --- MakeMaker macro section:
@@ -838,7 +838,7 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,5,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,6,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>A Perl message queue based on POE that uses STOMP as its communication protocol.</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>David Snopek</AUTHOR>' >> $(DISTNAME).ppd
