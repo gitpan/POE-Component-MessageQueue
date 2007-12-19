@@ -1,3 +1,19 @@
+#
+# Copyright 2007 David Snopek <dsnopek@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 package POE::Component::MessageQueue::Storage::Memory;
 use base qw(POE::Component::MessageQueue::Storage);
@@ -12,7 +28,7 @@ sub new
 	my $self  = $class->SUPER::new( @_ );
 
 	$self->{message_id} = 0;
-	$self->{messages}   = [ ];
+	$self->{messages}   = { }; # destination => @messages
 
 	return $self;
 }
@@ -27,16 +43,36 @@ sub has_message
 {
 	my ($self, $message_id) = @_;
 
-	# find the message and remove it
-	foreach my $message ( @{$self->{messages}} )
+	foreach my $dest ( keys %{$self->{messages}} )
 	{
-		if ( $message->{message_id} == $message_id )
+		my $messages = $self->{messages}->{$dest};
+		foreach my $message ( @{$messages} )
 		{
-			return 1;
+			if ( $message->{message_id} == $message_id )
+			{
+				return 1;
+			}
 		}
 	}
 
 	return 0;
+}
+
+# this function will clear out the engine and return an array reference
+# with all the messages on it.
+sub empty_all
+{
+	my $self = shift;
+
+	my @ret;
+
+	foreach my $messages ( values %{$self->{messages}} )
+	{
+		@ret = ( @ret, @$messages );
+	}
+	$self->{messages} = {};
+
+	return \@ret;
 }
 
 sub store
@@ -44,12 +80,16 @@ sub store
 	my ($self, $message) = @_;
 
 	# push onto our array
-	push @{$self->{messages}}, $message;
+	$self->{messages}{ $message->{destination} } ||= [];
+	push @{$self->{messages}{$message->{destination}}}, $message;
+	$self->_log( 
+		"STORE: MEMORY: Added $message->{message_id} to in-memory store" 
+	);
 
 	# call the message_stored handler
 	if ( defined $self->{message_stored} )
 	{
-		$self->{message_stored}->( $message->{destination} );
+		$self->{message_stored}->( $message );
 	}
 }
 
@@ -57,17 +97,21 @@ sub remove
 {
 	my ($self, $message_id) = @_;
 
-	my $max = scalar @{$self->{messages}};
-
-	# find the message and remove it
-	for( my $i = 0; $i < $max; $i++ )
+	foreach my $dest ( keys %{$self->{messages}} )
 	{
-		if ( $self->{messages}->[$i]->{message_id} == $message_id )
-		{
-			splice @{$self->{messages}}, $i, 1;
+		my $messages = $self->{messages}->{$dest};
+		my $max = scalar @{$messages};
 
-			# return 1 to denote that a message was actually removed
-			return 1;
+		# find the message and remove it
+		for ( my $i = 0; $i < $max; $i++ )
+		{
+			if ( $messages->[$i]->{message_id} == $message_id )
+			{
+				splice @{$messages}, $i, 1;
+
+				# return 1 to denote that a message was actually removed
+				return 1;
+			}
 		}
 	}
 
@@ -78,27 +122,29 @@ sub remove_multiple
 {
 	my ($self, $message_ids) = @_;
 
-	my $max = scalar @{$self->{messages}};
 	my @removed;
+	while (my($dest, $messages) = each %{ $self->{messages} }) {
+		my $max = scalar @{$messages};
 
-	# find the message and remove it
-	for( my $i = 0; $i < $max; $i++ )
-	{
-		my $message = $self->{messages}->[$i];
-
-		# check if its on the list of message ids
-		foreach my $other_id ( @$message_ids )
+		# find the message and remove it
+		for ( my $i = 0; $i < $max; $i++ )
 		{
-			if ( $message->{message_id} == $other_id )
+			my $message = $messages->[$i];
+
+			# check if its on the list of message ids
+			foreach my $other_id ( @$message_ids )
 			{
-				# put on our list
-				push @removed, $message;
+				if ( $message->{message_id} == $other_id )
+				{
+					# put on our list
+					push @removed, $message;
 
-				# remove
-				splice @{$self->{messages}}, $i--, 1;
+					# remove
+					splice @{$messages}, $i--, 1;
 
-				# move onto next message
-				last;
+					# move onto next message
+					last;
+				}
 			}
 		}
 	}
@@ -125,14 +171,12 @@ sub claim_and_retrieve
 		$client_id   = shift;
 	}
 
-	my $max = scalar @{$self->{messages}};
+	my @messages = @{ $self->{messages}{$destination} || [] };
 
 	# look for an unclaimed message and take it
-	for ( my $i = 0; $i < $max; $i++ )
+	foreach my $message (@messages)
 	{
-		my $message = $self->{messages}->[$i];
-
-		if ( $message->{destination} eq $destination and not defined $message->{in_use_by} )
+		if ( not defined $message->{in_use_by} )
 		{
 			if ( not defined $self->{dispatch_message} )
 			{
@@ -141,6 +185,10 @@ sub claim_and_retrieve
 
 			# claim it, yo!
 			$message->{in_use_by} = $client_id;
+			$self->_log('info',
+				"STORE: MEMORY: Message $message->{message_id} ".
+				"claimed by client $client_id."
+			);
 
 			# dispatch message
 			$self->{dispatch_message}->( $message, $destination, $client_id );
@@ -161,12 +209,26 @@ sub disown
 {
 	my ($self, $destination, $client_id) = @_;
 
-	foreach my $message ( @{$self->{messages}} )
+	my $messages = $self->{messages}{$destination} || [];
+	foreach my $message ( @{$messages} )
 	{
-		if ( $message->{destination} eq $destination and $message->{in_use_by} == $client_id )
+		if ( $message->{in_use_by} == $client_id )
 		{
 			$message->{in_use_by} = undef;
 		}
+	}
+}
+
+sub shutdown
+{
+	my $self = shift;
+
+	# this storage engine is so simple, it has nothing to do to
+	# shutdown!  Since its purely in memory, it can't even persist
+	# any messages.
+	if ( defined $self->{shutdown_complete} )
+	{
+		$self->{shutdown_complete}->();
 	}
 }
 

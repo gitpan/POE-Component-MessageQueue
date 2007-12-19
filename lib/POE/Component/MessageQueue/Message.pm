@@ -1,3 +1,19 @@
+#
+# Copyright 2007 David Snopek <dsnopek@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 package POE::Component::MessageQueue::Message;
 
@@ -14,6 +30,8 @@ sub new
 	my $body;
 	my $persistent;
 	my $in_use_by;
+	my $size;
+	my $timestamp;
 
 	if ( ref($args) eq 'HASH' )
 	{
@@ -22,6 +40,8 @@ sub new
 		$body        = $args->{body};
 		$persistent  = $args->{persistent};
 		$in_use_by   = $args->{in_use_by};
+		$timestamp   = $args->{timestamp};
+		$size        = $args->{size};
 	}
 	else
 	{
@@ -31,6 +51,11 @@ sub new
 		$persistent  = shift;
 	}
 
+	if ( not defined $size )
+	{
+		$size = ($body) ? length $body : 0;
+	}
+
 	my $self =
 	{
 		message_id  => $message_id,
@@ -38,6 +63,8 @@ sub new
 		body        => $body       || '',
 		persistent  => $persistent || 0,
 		in_use_by   => $in_use_by  || undef,
+		timestamp   => $timestamp  || time(),
+		size        => $size,
 	};
 
 	bless  $self, $class;
@@ -49,6 +76,8 @@ sub get_destination { return shift->{destination}; }
 sub get_body        { return shift->{body}; }
 sub get_persistent  { return shift->{persistent}; }
 sub get_in_use_by   { return shift->{in_use_by}; }
+sub get_timestamp   { return shift->{timestamp}; }
+sub get_size        { return shift->{size}; }
 
 sub is_in_queue
 {

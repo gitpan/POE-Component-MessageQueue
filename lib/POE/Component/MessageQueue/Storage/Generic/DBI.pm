@@ -1,6 +1,6 @@
 
 package POE::Component::MessageQueue::Storage::Generic::DBI;
-use base qw(POE::Component::MessageQueue::Storage);
+use base qw(POE::Component::MessageQueue::Storage::Generic::Base);
 
 use DBI;
 use Exception::Class::DBI;
@@ -75,7 +75,7 @@ sub store
 {
 	my ($self, $message) = @_;
 
-	my $SQL = "INSERT INTO messages (message_id, destination, body, persistent, in_use_by) VALUES ( ?, ?, ?, ?, ? )";
+	my $SQL = "INSERT INTO messages (message_id, destination, body, persistent, in_use_by, timestamp, size) VALUES ( ?, ?, ?, ?, ?, ?, ? )";
 
 	try eval
 	{
@@ -86,7 +86,9 @@ sub store
 			$message->{destination},
 			$message->{body},
 			$message->{persistent},
-			$message->{in_use_by}
+			$message->{in_use_by},
+			$message->{timestamp},
+			$message->{size},
 		);
 	};
 	my $err = catch;
@@ -102,7 +104,7 @@ sub store
 
 	if ( defined $self->{message_stored} )
 	{
-		$self->{message_stored}->( $message->{destination} );
+		$self->{message_stored}->( $message );
 	}
 
 	undef;
@@ -138,7 +140,7 @@ sub _retrieve
 {
 	my ($self, $destination) = @_;
 
-	my $SQL = "SELECT * FROM messages WHERE destination = ? AND in_use_by IS NULL ORDER BY message_id ASC LIMIT 1";
+	my $SQL = "SELECT * FROM messages WHERE destination = ? AND in_use_by IS NULL ORDER BY timestamp ASC LIMIT 1";
 
 	my $result;
 
@@ -162,7 +164,9 @@ sub _retrieve
 			destination => $result->{destination},
 			persistent  => $result->{persistent},
 			body        => $result->{body},
-			in_use_by   => $result->{in_use_by}
+			in_use_by   => $result->{in_use_by},
+			timestamp   => $result->{timestamp},
+			size        => $result->{size},
 		});
 	}
 
@@ -189,7 +193,10 @@ sub _claim
 	}
 	else
 	{
-		$self->_log("STORE: DBI: Message $message->{message_id} claimed by $message->{in_use_by}");
+		$self->_log('info', 
+			"STORE: DBI: Message $message->{message_id} ".
+			"claimed by $message->{in_use_by}"
+		);
 	}
 
 	undef;
@@ -240,9 +247,12 @@ sub claim_and_retrieve
 		# claim away!
 		$self->_claim( $message );
 
-		# after it is claimed, we declare the destination ready for 
-		# more action!
-		$self->{destination_ready}->( $destination );
+		if ( defined $self->{destination_ready} )
+		{
+			# after it is claimed, we declare the destination ready for 
+			# more action!
+			$self->{destination_ready}->( $destination );
+		}
 	}
 
 	undef;
@@ -272,6 +282,24 @@ sub disown
 	}
 
 	undef;
+}
+
+sub shutdown
+{
+	my ($self) = @_;
+
+	$self->_log('alert', 'Shutting down DBI storage engine...');
+
+	# close the database handle.
+	$self->{dbh}->disconnect();
+
+	# call the shutdown handler.
+	if ( defined $self->{shutdown_complete} )
+	{
+		$self->{shutdown_complete}->();
+	}
+
+	return undef;
 }
 
 1;

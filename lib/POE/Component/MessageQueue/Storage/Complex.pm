@@ -1,3 +1,19 @@
+#
+# Copyright 2007 David Snopek <dsnopek@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 package POE::Component::MessageQueue::Storage::Complex;
 use base qw(POE::Component::MessageQueue::Storage);
@@ -19,11 +35,14 @@ CREATE TABLE messages
 	destination varchar(255) not null,
 	persistent  char(1) default 'Y' not null,
 	in_use_by   int,
-	body        text
+	body        text,
+	timestamp   int,
+	size        int
 );
 
 CREATE INDEX destination_index ON messages ( destination );
 CREATE INDEX in_use_by_index   ON messages ( in_use_by );
+CREATE INDEX timestamp_index   ON messages ( timestamp );
 EOF
 
 sub new
@@ -58,13 +77,29 @@ sub new
 	my $db_password = "";
 
 	# setup sqlite for backstore
-	if ( not -f $db_file )
+	my $create_db = (not -f $db_file);
+	my $dbh = DBI->connect($db_dsn, $db_username, $db_password, { RaiseError => 1 });
+	if ( $create_db )
 	{
 		# create initial database
-		my $dbh = DBI->connect($db_dsn, $db_username, $db_password);
 		$dbh->do( $DB_CREATE );
-		$dbh->disconnect();
 	}
+	else
+	{
+		eval
+		{
+			$dbh->selectrow_array("SELECT timestamp, size FROM messages LIMIT 1");
+		};
+		if ( $@ )
+		{
+			print STDERR "WARNING: User has pre-0.1.7 database format.\n";
+			print STDERR "WARNING: Performing in place upgrade.\n";
+			$dbh->do("ALTER TABLE messages ADD COLUMN timestamp INT");
+			$dbh->do("ALTER TABLE messages ADD COLUMN size      INT");
+			$dbh->do("CREATE INDEX timestamp_index ON messages ( timestamp )");
+		}
+	}
+	$dbh->disconnect();
 
 	# our memory-based front store
 	my $front_store = POE::Component::MessageQueue::Storage::Memory->new();
@@ -93,6 +128,7 @@ sub new
 	$self->{timeout}     = $timeout;
 	$self->{delay}       = $delay;
 	$self->{timestamps}  = { };
+	$self->{shutdown}    = 0;
 
 	# our session that does the timed message check-up.
 	my $session = POE::Session->create(
@@ -142,6 +178,12 @@ sub set_destination_ready_handler
 	$self->{back_store}->set_destination_ready_handler( $handler );
 }
 
+sub set_shutdown_complete_handler
+{
+	my ($self, $handler) = @_;
+	$self->{back_store}->set_shutdown_complete_handler( $handler );
+}
+
 sub set_logger
 {
 	my ($self, $logger) = @_;
@@ -171,8 +213,6 @@ sub store
 		# never considered for adding to the backing store.
 		$self->{timestamps}->{$message->{message_id}} = time();
 	}
-
-	$self->_log( "STORE: MEMORY: Added $message->{message_id} to in-memory store" );
 }
 
 sub remove
@@ -223,6 +263,12 @@ sub _check_messages
 {
 	my ($self, $kernel) = @_[ OBJECT, KERNEL ];
 
+	if ( $self->{shutdown} )
+	{
+		# don't do anything and get out of here!
+		return;
+	}
+
 	$self->_log( 'debug', 'STORE: COMPLEX: Checking for outdated messages' );
 
 	my $threshold = time() - $self->{timeout};
@@ -255,6 +301,36 @@ sub _check_messages
 
 	# keep us alive
 	$kernel->delay( '_check_messages', $self->{delay} );
+}
+
+sub shutdown
+{
+	my $self = shift;
+
+	if ( $self->{shutdown} )
+	{
+		return;
+	}
+	$self->{shutdown} = 1;
+
+	# shutdown our check messages session
+	$poe_kernel->signal( $self->{session}, 'TERM' );
+
+	$self->_log('alert', 'Forcing all messages from the front-store into the back-store...');
+	foreach my $message ( @{$self->{front_store}->empty_all()} )
+	{
+		if ( $message->{persistent} )
+		{
+			$self->_log( "STORE: COMPLEX: Moving message $message->{message_id} into backing store" );
+			$self->{back_store}->store($message);
+		}
+	}
+
+	# call the front-stores shutdown, just in case.  This really shouldn't do anything.
+	$self->{front_store}->shutdown();
+
+	# this should finish the job
+	$self->{back_store}->shutdown();
 }
 
 1;

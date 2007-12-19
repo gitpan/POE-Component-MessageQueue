@@ -4,7 +4,7 @@ use inc::Module::Install;
 name 'POE-Component-MessageQueue';
 abstract 'A Perl message queue based on POE that uses STOMP as its communication protocol.';
 author 'David Snopek';
-version '0.1.6';
+version '0.1.7';
 license 'gpl';
 
 build_requires 'Data::Dumper';
@@ -19,11 +19,16 @@ requires 'POE::Wheel::ReadWrite';
 requires 'Net::Stomp';
 requires 'Exception::Class::DBI';
 requires 'Exception::Class::TryCatch';
+requires 'Event::Notify';
 requires 'DBI';
 requires 'DBD::SQLite' => 1.13;
 requires 'IO::String';
 requires 'IO::File';
 requires 'Carp';
+requires 'Best';
+requires 'YAML';
+
+recommends 'YAML::Syck';
 
 no_index directory => 'test';
 no_index directory => 'examples';

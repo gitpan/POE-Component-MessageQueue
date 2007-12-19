@@ -1,3 +1,19 @@
+#
+# Copyright 2007 David Snopek <dsnopek@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 package POE::Component::MessageQueue;
 
@@ -7,13 +23,16 @@ use POE::Component::MessageQueue::Client;
 use POE::Component::MessageQueue::Queue;
 use POE::Component::MessageQueue::Message;
 use Net::Stomp;
+use Event::Notify;
 use vars qw($VERSION);
 use strict;
 
-$VERSION = '0.1.6';
+$VERSION = '0.1.7';
 
 use Carp qw(croak);
 use Data::Dumper;
+
+use constant SHUTDOWN_SIGNALS => ('TERM', 'HUP', 'INT');
 
 sub new
 {
@@ -28,6 +47,7 @@ sub new
 
 	my $storage;
 	my $logger_alias;
+	my $observers;
 
 	if ( ref($args) eq 'HASH' )
 	{
@@ -39,6 +59,7 @@ sub new
 		
 		$storage      = $args->{storage};
 		$logger_alias = $args->{logger_alias};
+		$observers    = $args->{observers};
 	}
 
 	if ( not defined $storage )
@@ -57,16 +78,30 @@ sub new
 		clients   => { },
 		queues    => { },
 		needs_ack => { },
+		notify    => Event::Notify->new(),
+		observers => $observers,
 	};
 	bless $self, $class;
+
+	if ($observers) {
+		# Register the observers
+		$_->register($self) for (@$observers);
+	}
 
 	# setup the storage callbacks
 	$self->{storage}->set_message_stored_handler(  $self->__closure('_message_stored') );
 	$self->{storage}->set_dispatch_message_handler(  $self->__closure('_dispatch_from_store') );
 	$self->{storage}->set_destination_ready_handler( $self->__closure('_destination_store_ready') );
+	$self->{storage}->set_shutdown_complete_handler( $self->__closure('_shutdown_complete') );
 
 	# get the storage object using our logger
 	$self->{storage}->set_logger( $self->{logger} );
+
+	# to name the session for master tasks
+	if ( not defined $alias )
+	{
+		$alias = "MQ";
+	}
 
 	# setup our stomp server
 	POE::Component::Server::Stomp->new(
@@ -85,26 +120,35 @@ sub new
 		],
 	);
 
-	# to name the session for master tasks
-	if ( not defined $alias )
-	{
-		$alias = "MQ";
-	}
-
 	# a custom session for non-STOMP responsive tasks
 	$self->{session} = POE::Session->create(
 		inline_states => {
 			_start => sub { 
-				$_[ KERNEL ]->alias_set("$alias-master");
-			}
+				my $kernel = $_[ KERNEL ];
+				$kernel->alias_set("$alias-master");
+				# install signal handlers to initiate graceful shutdown.
+				# We only respond to user-type signals - crash signals like 
+				# SEGV and BUS should behave normally
+				foreach my $signal ( SHUTDOWN_SIGNALS )
+				{
+					$kernel->sig($signal => '_shutdown'); 
+				}
+			},
 		},
 		object_states => [
-			$self => [ '_pump' ]
+			$self => [ '_pump', '_shutdown' ]
 		],
 	);
 
+	# stash our session aliases for later
+	$self->{server_alias} = $alias;
+	$self->{master_alias} = "$alias-master";
+
 	return $self;
 }
+
+sub register_event { shift->{notify}->register_event(@_) }
+sub unregister_event { shift->{notify}->unregister_event(@_) }
 
 sub get_storage { return shift->{storage}; }
 
@@ -159,7 +203,8 @@ sub remove_client
 	my $client = $self->get_client( $client_id );
 
 	# remove subscriptions to all queues
-	foreach my $queue_name ( @{$client->{queue_names}} )
+	my @queue_names = $client->get_subscribed_queue_names();
+	foreach my $queue_name ( @queue_names )
 	{
 		my $queue = $self->get_queue( $queue_name );
 		$queue->remove_subscription( $client );
@@ -218,9 +263,11 @@ sub _client_error
 
 sub _message_stored
 {
-	my ($self, $destination) = @_;
+	my ($self, $message) = @_;
 	
+	my $destination = $message->{destination};
 	my $queue;
+
 	if ( $destination =~ /\/queue\/(.*)/ )
 	{
 		my $queue_name = $1;
@@ -251,6 +298,11 @@ sub _dispatch_from_store
 		#print "MESSAGE FROM STORE\n";
 		#print Dumper $message;
 
+		$self->{notify}->notify( 'dispatch', {
+			queue => $queue,
+			message => $message,
+			client => $client
+		});
 		$queue->dispatch_message_to( $message, $client );
 	}
 	else
@@ -280,6 +332,29 @@ sub _destination_store_ready
 		my $queue = $self->get_queue( $queue_name );
 
 		$queue->pump();
+	}
+}
+
+sub _shutdown_complete
+{
+	my ($self) = @_;
+
+	$self->_log('alert', 'Storage engine has finished shutting down');
+
+	# Really, really take us down!
+	$self->_log('alert', 'Sending TERM signal to master sessions');
+	$poe_kernel->signal( $self->{server_alias}, 'TERM' );
+	$poe_kernel->signal( $self->{master_alias}, 'TERM' );
+
+	# shutdown the logger
+	$self->_log('alert', 'Shutting down the logger');
+	$self->{logger}->shutdown();
+
+	# Shutdown anyone watching us
+	my $oref = $self->{observers};
+	if ($oref)
+	{
+		$_->shutdown() for (@$oref);
 	}
 }
 
@@ -380,7 +455,15 @@ sub route_frame
 				stored      => 0
 			});
 
+			$self->{notify}->notify( 'recv', {
+				message => $message,
+				queue   => $queue,
+				client  => $client,
+			});
+
 			$queue->enqueue( $message );
+
+			$self->{notify}->notify( 'store', { queue => $queue, message => $message } );
 		}
 		else
 		{
@@ -445,6 +528,16 @@ sub route_frame
 	{
 		$self->_log( 'error', "ERROR: Don't know how to handle frame: " . $frame->as_string );
 	}
+
+	if ($frame->command ne 'CONNECT' && $frame->headers && (my $receipt = $frame->headers->{receipt}))
+	{
+		$client->send_frame( Net::Stomp::Frame->new( {
+			command => 'RECEIPT',
+			headers => {
+				receipt => $receipt
+			}
+		} ) );
+	}
 }
 
 sub create_message
@@ -467,7 +560,9 @@ sub push_unacked_message
 	my $unacked = {
 		client     => $client,
 		message_id => $message->{message_id},
-		queue_name => $message->get_queue_name()
+		queue_name => $message->get_queue_name(),
+		timestamp  => $message->{timestamp},
+		size       => $message->{size}
 	};
 	
 	$self->{needs_ack}->{$message->{message_id}} = $unacked;
@@ -487,7 +582,6 @@ sub pop_unacked_message
 		$self->_log( 'alert', "message id: $message_id" );;
 		$self->_log( 'alert', "needs_ack says $unacked->{client}->{client_id}" );
 		$self->_log( 'alert', "but we got a message from $client->{client_id}" );
-		exit 1;
 		return undef;
 	}
 	else
@@ -507,7 +601,7 @@ sub ack_message
 
 	if ( not defined $unacked )
 	{
-		$self->_log( 'alert', "Attempting to ACK a message not in our needs_ack list" );
+		$self->_log( 'alert', "Error ACK'ing message: $message_id" );
 		return;
 	}
 	
@@ -524,8 +618,63 @@ sub ack_message
 		$sub->set_done_with_message();
 	}
 
+	$self->{notify}->notify('ack', {
+		queue => $queue,
+		client => $client,
+		message_info => {
+			message_id => $unacked->{message_id},
+			timestamp  => $unacked->{timestamp},
+			size       => $unacked->{size},
+		}
+	});
+
 	# pump the queue, so that this subscriber will get another message
 	$queue->pump();
+}
+
+sub _shutdown 
+{
+	my ($self, $kernel, $signal) = @_[ OBJECT, KERNEL, ARG0 ];
+	$self->_log('alert', "Got SIG$signal. Shutting down.");
+	$kernel->sig_handled();
+	$self->shutdown(); 
+}
+
+sub shutdown
+{
+	my $self = shift;
+
+	if ( $self->{shutdown} )
+	{
+		$self->{shutdown}++;
+		if ( $self->{shutdown} >= 3 )
+		{
+			# TODO: Probably this isn't the right thing to do, but right now, during
+			# development, this is necessary because the graceful shutdown doesn't work
+			# at all.
+			my $msg = "Shutdown called $self->{shutdown} times!  Forcing ungraceful quit.";
+			$self->_log('emergency', $msg);
+			print STDERR "$msg\n";
+			$poe_kernel->stop();
+		}
+		return;
+	}
+	$self->{shutdown} = 1;
+
+	$self->_log('alert', 'Initiating message queue shutdown...');
+
+	# stop listening for connections
+	$poe_kernel->post( $self->{server_alias} => 'shutdown' );
+
+	# shutdown all client connections
+	my @client_ids = keys %{$self->{clients}};
+	foreach my $client_id ( @client_ids )
+	{
+		$poe_kernel->post( $client_id => 'shutdown' );
+	}
+
+	# shutdown the storage
+	$self->{storage}->shutdown();
 }
 
 1;
@@ -579,33 +728,47 @@ POE::Component::MessageQueue - A POE message queue that uses STOMP for the commu
 If you are only interested in running with the recommended storage backend and
 some predetermined defaults, you can use the included command line script.
 
-  user$ mq.pl --usage
-  POE::Component::MessageQueue version 0.1.4
+  user$ mq.pl --help
+  POE::Component::MessageQueue version 0.1.7
   Copyright 2007 David Snopek
-  
+
   mq.pl [--port|-p <num>] [--hostname|-h <host>]
         [--timeout|-i <seconds>]   [--throttle|-T <count>]
-        [--data-dir <path_to_dir>] [--log-cont <path_to_file>]
+        [--data-dir <path_to_dir>] [--log-conf <path_to_file>]
+        [--stats] [--stats-interval|-i <seconds>]
         [--background|-b] [--pidfile|-p <path_to_file>]
-        [--version|-v] [--help|-h]
-  
+        [--debug-shell] [--version|-v] [--help|-h]
+
   SERVER OPTIONS:
-    --port     -p <num>    The port number to listen on (Default: 61613)
-    --hostname -h <host>   The hostname of the interface to listen on (Default: localhost)
-  
+    --port     -p <num>     The port number to listen on (Default: 61613)
+    --hostname -h <host>    The hostname of the interface to listen on 
+                            (Default: localhost)
+
   STORAGE OPTIONS:
-    --timeout  -i <secs>   The number of seconds to keep messages in the front-store (Default: 4)
-    --throttle -T <count>  The number of messages that can be stored at once before throttling (Default: 2)
-    --data-dir <path>      The path to the directory to store data (Default: /var/lib/perl_mq)
-    --log-conf <path>      The path to the log configuration file (Default: /etc/perl_mq/log.conf
-  
+    --timeout  -i <secs>    The number of seconds to keep messages in the 
+                            front-store (Default: 4)
+    --throttle -T <count>   The number of messages that can be stored at once 
+                            before throttling (Default: 2)
+    --data-dir <path>       The path to the directory to store data 
+                            (Default: /var/lib/perl_mq)
+    --log-conf <path>       The path to the log configuration file 
+                            (Default: /etc/perl_mq/log.conf
+
+  STATISTICS OPTIONS:
+    --stats                 If specified the, statistics information will be 
+                            written to $DATA_DIR/stats.yml
+    --stats-interval <secs> Specifies the number of seconds to wait before 
+                            dumping statistics (Default: 10)
+
   DAEMON OPTIONS:
-    --background -b        If specified the script will daemonize and run in the background
-    --pidfile    -p <path> The path to a file to store the PID of the process
-  
+    --background -b         If specified the script will daemonize and run in the
+                            background
+    --pidfile    -p <path>  The path to a file to store the PID of the process
+
   OTHER OPTIONS:
-    --version    -v        Show the current version.
-    --help       -h        Show this usage message
+    --debug-shell           Run with POE::Component::DebugShell
+    --version    -v         Show the current version.
+    --help       -h         Show this usage message
 
 =head1 DESCRIPTION
 
@@ -657,10 +820,6 @@ L<POE::Component::MessageQueue::Storage::Memory> -- The simplest storage engine.
 =item *
 
 L<POE::Component::MessageQueue::Storage::DBI> -- Uses Perl L<DBI> to store messages.  Not recommended to use directly because message body doesn't belong in the database.  All messages are stored persistently.  (Underneath this is really just L<POE::Component::MessageQueue::Storage::Generic> and L<POE::Component::MessageQueue::Storage::Generic::DBI>)
-
-=item *
-
-L<POE::Component::MessageQueue::Storage::EasyDBI> -- An alternative L<DBI> storage engine based on L<POE::Component::EasyDBI>.  Its use is B<not recommend> because of inexplicable memory problems.  This will remain in the distribution for the time being but will probably be removed in the future.  All messages are stored persistently.
 
 =item *
 
@@ -724,6 +883,14 @@ to AF_INET.
 Opitionally set the alias of the POE::Component::Logger object that you want the message
 queue to log to.  If no value is given, log information is simply printed to STDERR.
 
+=item observers => ARRAYREF
+
+Optionally pass in a number of objects that will receive information about events inside
+of the message queue.
+
+Currently, only one observer is provided with the PoCo::MQ distribution:
+L<POE::Component::MessageQueue::Statistics>.  Please see its documentation for more information.
+
 =back
 
 =head1 REFERENCES
@@ -743,6 +910,53 @@ L<http://stomp.codehaus.org/Protocol> -- The informal "spec" for the STOMP proto
 L<http://www.activemq.org/> -- ActiveMQ is a popular Java-based message queue
 
 =back
+
+=head1 UPGRADING FROM 0.1.6 OR OLDER
+
+If you used any of the following storage engines with PoCo::MQ 0.1.6 or older:
+
+=over 4
+
+=item *
+
+L<POE::Component::MessageQueue::Storage::DBI>
+
+=back
+
+The database format has changed.
+
+B<Note:> When using L<POE::Component::MessageQueue::Storage::Complex> (meaning mq.pl)
+the database will be automatically updated in place, so you don't need to worry
+about this.
+
+You will need to execute the following ALTER statements on your database to allow
+PoCo::MQ to keep working:
+
+  ALTER TABLE messages ADD COLUMN timestamp INT;
+  ALTER TABLE messages ADD COLUMN size      INT;
+
+=head1 CONTACT
+
+Please check out the Google Group at:
+
+L<http://groups.google.com/group/pocomq>
+
+Or just send an e-mail to: pocomq@googlegroups.com
+
+=head1 DEVELOPMENT
+
+If you find any bugs, have feature requests, or wish to contribute, please
+contact us at our Google Group mentioned above.  We'll do our best to help you
+out!
+
+Development is coordinated via Bazaar (See L<http://bazaar-vcs.org>).  The main
+Bazaar branch can be found here:
+
+L<http://code.hackyourlife.org/bzr/dsnopek/perl_mq>
+
+We prefer that contributions come in the form of a published Bazaar branch with the
+changes.  This helps facilitate the back-and-forth in the review process to get
+any new code merged into the main branch.
 
 =head1 FUTURE
 
@@ -778,7 +992,7 @@ I<External modules:>
 L<POE>, L<POE::Component::Server::Stomp>, L<Net::Stomp>, L<POE::Component::Logger>, L<DBD::SQLite>,
 L<POE::Component::Generic>
 
-I<Internal modules:>
+I<Storage modules:>
 
 L<POE::Component::MessageQueue::Storage>,
 L<POE::Component::MessageQueue::Storage::Memory>,
@@ -789,31 +1003,38 @@ L<POE::Component::MessageQueue::Storage::Generic::DBI>,
 L<POE::Component::MessageQueue::Storage::Throttled>,
 L<POE::Component::MessageQueue::Storage::Complex>
 
+I<Statistics modules:>
+
+L<POE::Component::MessageQueue::Statistics>,
+L<POE::Component::MessageQueue::Statistics::Publish>,
+L<POE::Component::MessageQueue::Statistics::Publish::YAML>
+
 =head1 BUGS
 
-A ton of debugging work went into the 0.1.3 release.
-
-I recieved a script from a user that would cause a memory leak in 0.1.2.  By switching to
-L<POE::Component::Generic> for the L<POE::Component::MessageQueue::Storage::DBI> module,
-I was able to eliminate this memory leak.
-
-However!  Our message queue in production still appears to steadily increase its memory 
-usage.  This could be another memory leak but it is also possible that its just memory
-fragmentation or the load being so high that the number of throttled messages is getting
-out of control.
-
-I am unable to recreate this in testing, making it difficult to debug.  It only turns up
-under our production load.  If anyone else experiences this problem and can recreate in an
-reliable way (preferably with something automated like a script), I<let me know>!
+We are serious about squashing bugs!  Currently, there are no known bugs, but
+some probably do exist.  If you find any, please let us know at the Google group.
 
 That said, we are using this in production in a commercial application for
-thousands of large messages daily and it takes quite awhile to get unreasonably bloated.
-Despite its problems, in the true spirit of Open Source and Free Software, I've decided
-to "release early -- release often."
+thousands of large messages daily and we experience very few issues.
 
 =head1 AUTHOR
 
-Copyright 2007 David Snopek <dsnopek@gmail.com>
+Copyright 2007 David Snopek (L<http://www.hackyourlife.org/>)
+
+=head1 LICENSE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut
 

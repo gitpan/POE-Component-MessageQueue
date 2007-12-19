@@ -14,10 +14,14 @@ no_index:
     - examples
     - inc
     - t
+recommends:
+  YAML::Syck: 0
 requires:
+  Best: 0
   Carp: 0
   DBD::SQLite: 1.13
   DBI: 0
+  Event::Notify: 0
   Exception::Class::DBI: 0
   Exception::Class::TryCatch: 0
   IO::File: 0
@@ -28,4 +32,5 @@ requires:
   POE::Component::Logger: 0
   POE::Component::Server::TCP: 0
   POE::Wheel::ReadWrite: 0
-version: 0.1.6
+  YAML: 0
+version: 0.1.7

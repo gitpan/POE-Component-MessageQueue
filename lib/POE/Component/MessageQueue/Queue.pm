@@ -1,3 +1,19 @@
+#
+# Copyright 2007 David Snopek <dsnopek@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 package POE::Component::MessageQueue::Queue;
 
@@ -50,8 +66,10 @@ sub _log
 
 sub add_subscription
 {
-	my $self = shift;
-	my $sub  = POE::Component::MessageQueue::Subscription->new( @_ );
+	my $self   = shift;
+	my $client = shift;
+	my $ack_type = shift;
+	my $sub    = POE::Component::MessageQueue::Subscription->new( $client, $ack_type );
 	push @{$self->{subscriptions}}, $sub;
 
 	# add the subscription to the sub_map.
@@ -60,6 +78,7 @@ sub add_subscription
 	# add to the client's list of subscriptions
 	$sub->{client}->_add_queue_name( $self->{queue_name} );
 
+	$self->get_parent->{notify}->notify('subscribe', { queue => $self, client => $client });
 	# pump the queue now that we have a new subscriber
 	$self->pump();
 }
@@ -88,6 +107,7 @@ sub remove_subscription
 			$self->get_parent()->get_storage()->disown(
 				"/queue/$self->{queue_name}", $client->{client_id} );
 
+			$self->get_parent->{notify}->notify('unsubscribe', { queue => $self, client => $client });
 			return;
 		}
 	}
@@ -169,6 +189,7 @@ sub pump
 	$self->{pumping} = 1;
 	
 	$self->_log( 'debug', " -- PUMP QUEUE: $self->{queue_name} -- " );
+	$self->get_parent->{notify}->notify('pump');
 
 	# attempt to get a pending message and pass it the the 'send_queue' action.
 	if ( $self->{has_pending_messages} )
@@ -239,14 +260,16 @@ sub dispatch_message_to
 
 	if ( not $result )
 	{
+		my $client_id = (defined $sub) ? $sub->{client}->{client_id} : $receiver->{client_id};
+
 		# This can happen when a client disconnects before the server
 		# can give them the message intended for them.
-		$self->_log( 'warning', "QUEUE: Message $message->{message_id} intended for $receiver->{client_id} on /queue/$self->{queue_name} could not be delivered" );
+		$self->_log( 'warning', "QUEUE: Message $message->{message_id} intended for $client_id on /queue/$self->{queue_name} could not be delivered" );
 
 		# The message *NEEDS* to be disowned in the storage layer, otherwise
 		# it will live forever as being claimed by a client that doesn't exist.
 		$self->get_parent()->get_storage()->disown(
-			"/queue/$self->{queue_name}", $receiver->{client_id} );
+			"/queue/$self->{queue_name}", $client_id );
 
 		# pump the queue to get the message to another suscriber.
 		$self->pump();
@@ -277,20 +300,19 @@ sub enqueue
 {
 	my ($self, $message) = @_;
 
-	my $sub = $self->get_available_subscriber();
-
-	# if we already have a subscriber in mind, be sure to set that right away.
-	if ( defined $sub )
+	# If we already have a ready subscriber, we'll claim and dispatch before we
+	# store to give the subscriber a headstart on processing.
+	if ( my $sub = $self->get_available_subscriber() )
 	{
-		$message->set_in_use_by( $sub->{client}->{client_id} );
-	}
-	# store it as soon as possible!
-	$self->get_parent()->get_storage()->store( $message );
-	# actually send it to the subscriber that we had in mind
-	if ( defined $sub )
-	{
+		my $client_id = $sub->{client}->{client_id};
+		$message->set_in_use_by( $client_id );
+		$self->_log('info', 
+			"QUEUE: Message $message->{message_id} ".
+			"claimed by client $client_id during enqueue"
+		);
 		$self->dispatch_message_to( $message, $sub );
 	}
+	$self->get_parent()->get_storage()->store( $message );
 }
 
 1;

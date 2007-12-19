@@ -1,3 +1,19 @@
+#
+# Copyright 2007 David Snopek <dsnopek@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 package POE::Component::MessageQueue::Storage::Generic;
 use base qw(POE::Component::MessageQueue::Storage);
@@ -43,6 +59,7 @@ sub new
 					'set_message_stored_handler',
 					'set_dispatch_message_handler',
 					'set_destination_ready_handler',
+					'set_shutdown_complete_handler',
 					'set_log_function'
 				],
 				factories => [ 'get_logger' ],
@@ -52,13 +69,20 @@ sub new
 				postbacks => [ 'set_log_function' ]
 			}
 		},
-		#debug => 1
+		error => {
+			session => 'MQ-Storage-Generic',
+			event   => '_error'
+		},
+		#debug => 1,
+		#verbose => 1
 	);
+
+	$self->{session_alias} = 'MQ-Storage-Generic';
 
 	my $session = POE::Session->create(
 		inline_states => {
 			_start => sub {
-				$_[KERNEL]->alias_set('MQ-Storage-Generic')
+				$_[KERNEL]->alias_set($self->{session_alias})
 			},
 		},
 		object_states => [
@@ -70,6 +94,8 @@ sub new
 				'_dispatch_message',
 				'_destination_ready',
 				'_finished_claiming',
+				'_shutdown_complete',
+				'_error',
 			]
 		]
 	);
@@ -98,6 +124,9 @@ sub new
 	$self->{generic}->set_destination_ready_handler(
 		{ session => $session->ID(), event => '_general_handler' },
 		{ session => $session->ID(), event => '_destination_ready' });
+	$self->{generic}->set_shutdown_complete_handler(
+		{ session => $session->ID(), event => '_general_handler' },
+		{ session => $session->ID(), event => '_shutdown_complete' });
 
 	return $self;
 }
@@ -186,6 +215,22 @@ sub disown
 	);
 }
 
+sub shutdown
+{
+	my $self = shift;
+
+	$self->_log('alert', 'Shutting down generic storage engine...');
+
+	$self->{shutdown} = 1;
+
+	# Send the shutdown message.  When the underlying object calls
+	# the callback, we will then be sure that all message before it
+	# have gotten through and handled.
+	$self->{generic}->yield( storage_shutdown =>
+		{ session => $self->{session}->ID(), event => '_general_handler' }
+	);
+}
+
 sub _general_handler
 {
 	my ($self, $kernel, $ref, $result) = @_[ OBJECT, KERNEL, ARG0, ARG1 ];
@@ -193,6 +238,28 @@ sub _general_handler
 	if ( $ref->{error} )
 	{
 		$self->_log("error", "Generic error: $ref->{error}");
+	}
+}
+
+sub _error
+{
+	my ( $self, $err ) = @_[ OBJECT, ARG0 ];
+
+	if ( $err->{stderr} )
+	{
+		$self->_log('debug', $err->{stderr});
+	}
+	else
+	{
+		$self->_log('error', "Generic error:  $err->{operation} $err->{errnum} $err->{errstr}");
+
+		if ( $self->{shutdown} )
+		{
+			# if any error occurs while attempting to shutdown, then
+			# we simply force a shutdown.
+			$self->_log('error', 'Forcing shutdown from error');
+			$poe_kernel->post( $self->{session}, '_shutdown_complete' );
+		}
 	}
 }
 
@@ -260,6 +327,25 @@ sub _destination_ready
 	if ( defined $self->{destination_ready} )
 	{
 		$self->{destination_ready}->( $destination );
+	}
+}
+
+sub _shutdown_complete
+{
+	my ($self) = @_[ OBJECT ];
+
+	# shutdown the generic object
+	$self->{generic}->shutdown();
+
+	# clear our alias, so this session should end.
+	$poe_kernel->alias_remove($self->{session_alias});
+
+	$self->_log('alert', 'Generic storage engine is shutdown!');
+
+	# We are shutdown!  Hurray!  Start passing it up the chain.
+	if ( defined $self->{shutdown_complete} )
+	{
+		$self->{shutdown_complete}->();
 	}
 }
 
