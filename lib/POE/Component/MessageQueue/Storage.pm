@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -97,13 +97,6 @@ sub get_logger
 {
 	my $self = shift;
 	return $self->{logger};
-}
-
-sub get_next_message_id
-{
-	my $self = shift;
-
-	die "Abstract.";
 }
 
 sub store

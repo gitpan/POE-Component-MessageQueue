@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -114,8 +114,9 @@ sub create_stomp_frame
 	my $frame = Net::Stomp::Frame->new({
 		command => 'MESSAGE',
 		headers => {
-			'destination' => $self->{destination},
-			'message-id'  => $self->{message_id},
+			'destination'    => $self->{destination},
+			'message-id'     => $self->{message_id},
+			'content-length' => $self->{size},
 		},
 		body => $self->{body}
 	});

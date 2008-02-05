@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ sub send_frame
 		# Check to see if the socket's Wheel is still around
 		if ( defined $client )
 		{
-			$client->put( $frame->as_string() . "\n" );
+			$client->put($frame);
 
 			return 1;
 		}

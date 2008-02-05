@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,16 +27,9 @@ sub new
 	my $class = shift;
 	my $self  = $class->SUPER::new( @_ );
 
-	$self->{message_id} = 0;
 	$self->{messages}   = { }; # destination => @messages
 
-	return $self;
-}
-
-sub get_next_message_id
-{
-	my $self = shift;
-	return ++$self->{message_id};
+	return bless $self, $class;
 }
 
 sub has_message
@@ -48,7 +41,7 @@ sub has_message
 		my $messages = $self->{messages}->{$dest};
 		foreach my $message ( @{$messages} )
 		{
-			if ( $message->{message_id} == $message_id )
+			if ( $message->{message_id} eq $message_id )
 			{
 				return 1;
 			}
@@ -105,12 +98,12 @@ sub remove
 		# find the message and remove it
 		for ( my $i = 0; $i < $max; $i++ )
 		{
-			if ( $messages->[$i]->{message_id} == $message_id )
+			if ( $messages->[$i]->{message_id} eq $message_id )
 			{
-				splice @{$messages}, $i, 1;
-
-				# return 1 to denote that a message was actually removed
-				return 1;
+				$self->_log('info',
+					"STORE: MEMORY: Removed $message_id from in-memory store"
+				);
+				return splice(@{$messages}, $i, 1);
 			}
 		}
 	}
@@ -134,7 +127,7 @@ sub remove_multiple
 			# check if its on the list of message ids
 			foreach my $other_id ( @$message_ids )
 			{
-				if ( $message->{message_id} == $other_id )
+				if ( $message->{message_id} eq $other_id )
 				{
 					# put on our list
 					push @removed, $message;
@@ -261,6 +254,9 @@ POE::Component::MessageQueue::Storage::Memory -- In memory storage engine.
 A storage engine that keeps all the messages in memory.  Provides no persistence
 what-so-ever.
 
+For an alternative in-memory storage engine optimized for a large number of 
+messages, please see L<POE::Component::MessageQueue::Storage::Memoray>.
+
 I wouldn't suggest using this as your main storage engine because if messages aren't
 removed by consumers, it will continue to consume more memory until it explodes.  Check-out
 L<POE::Component::MessageQueue::Storage::Complex> which uses this module internally to keep
@@ -272,13 +268,20 @@ None to speak of!
 
 =head1 SEE ALSO
 
+L<POE::Component::MessageQueue::Storage::BigMemory> -- Alternative memory-based storage engine.
+
 L<POE::Component::MessageQueue>,
-L<POE::Component::MessageQueue::Storage>,
+L<POE::Component::MessageQueue::Storage>
+
+I<Other storage engines:>
+
+L<POE::Component::MessageQueue::Storage::BigMemory>,
 L<POE::Component::MessageQueue::Storage::FileSystem>,
 L<POE::Component::MessageQueue::Storage::DBI>,
 L<POE::Component::MessageQueue::Storage::Generic>,
 L<POE::Component::MessageQueue::Storage::Generic::DBI>,
 L<POE::Component::MessageQueue::Storage::Throttled>,
-L<POE::Component::MessageQueue::Storage::Complex>
+L<POE::Component::MessageQueue::Storage::Complex>,
+L<POE::Component::MessageQueue::Storage::Default>
 
 =cut

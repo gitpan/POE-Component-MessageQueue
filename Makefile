@@ -18,8 +18,8 @@
 #     NAME => q[POE::Component::MessageQueue]
 #     NO_META => q[1]
 #     PL_FILES => {  }
-#     PREREQ_PM => { YAML=>q[0], DBD::SQLite=>q[1.13], POE::Component::Server::TCP=>q[0], Exception::Class::TryCatch=>q[0], DBI=>q[0], Exception::Class::DBI=>q[0], POE::Component::Logger=>q[0], IO::File=>q[0], IO::String=>q[0], Data::Dumper=>q[0], Event::Notify=>q[0], Carp=>q[0], Test::More=>q[0], POE::Wheel::ReadWrite=>q[0], File::Temp=>q[0], Best=>q[0], POE::Component::Generic=>q[0.1001], Net::Stomp=>q[0], POE=>q[0.38] }
-#     VERSION => q[0.1.7]
+#     PREREQ_PM => { POE::Filter::Stomp=>q[0.02], YAML=>q[0], DBD::SQLite=>q[1.13], POE::Component::Server::TCP=>q[0], Exception::Class::TryCatch=>q[0], DBI=>q[0], Exception::Class::DBI=>q[0], POE::Component::Logger=>q[0], IO::File=>q[0], IO::String=>q[0], Data::Dumper=>q[0], Event::Notify=>q[0], Carp=>q[0], Test::More=>q[0], POE::Wheel::ReadWrite=>q[0], File::Temp=>q[0], Best=>q[0], POE::Component::Generic=>q[0.1001], Net::Stomp=>q[0], POE=>q[0.38] }
+#     VERSION => q[0.1.8]
 #     dist => { PREOP=>q[$(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"] }
 #     test => { TESTS=>q[t/01_load.t t/02_client.t t/03_queue.t t/04_message.t] }
 
@@ -44,7 +44,7 @@ LIBC = /lib/libc-2.3.6.so
 LIB_EXT = .a
 OBJ_EXT = .o
 OSNAME = linux
-OSVERS = 2.6.18.3
+OSVERS = 2.6.22-3-amd64
 RANLIB = :
 SITELIBEXP = /usr/local/share/perl/5.8.8
 SITEARCHEXP = /usr/local/lib/perl/5.8.8
@@ -61,11 +61,11 @@ DIRFILESEP = /
 DFSEP = $(DIRFILESEP)
 NAME = POE::Component::MessageQueue
 NAME_SYM = POE_Component_MessageQueue
-VERSION = 0.1.7
+VERSION = 0.1.8
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_1_7
+VERSION_SYM = 0_1_8
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.1.7
+XS_VERSION = 0.1.8
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -164,16 +164,23 @@ O_FILES  =
 H_FILES  = 
 MAN1PODS = 
 MAN3PODS = lib/POE/Component/MessageQueue.pm \
+	lib/POE/Component/MessageQueue/IDGenerator.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/UUID.pm \
 	lib/POE/Component/MessageQueue/Statistics.pm \
 	lib/POE/Component/MessageQueue/Statistics/Publish.pm \
 	lib/POE/Component/MessageQueue/Statistics/Publish/YAML.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
+	lib/POE/Component/MessageQueue/Storage/BigMemory.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/Default.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/Server/Stomp.pm
 
@@ -199,6 +206,9 @@ PERL_ARCHIVE_AFTER =
 
 TO_INST_PM = lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Client.pm \
+	lib/POE/Component/MessageQueue/IDGenerator.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/UUID.pm \
 	lib/POE/Component/MessageQueue/Logger.pm \
 	lib/POE/Component/MessageQueue/Message.pm \
 	lib/POE/Component/MessageQueue/Queue.pm \
@@ -206,15 +216,20 @@ TO_INST_PM = lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Statistics/Publish.pm \
 	lib/POE/Component/MessageQueue/Statistics/Publish/YAML.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
+	lib/POE/Component/MessageQueue/Storage/BigMemory.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/Storage/Default.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic/Base.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Subscription.pm \
+	lib/POE/Component/MessageQueue/Topic.pm \
 	lib/POE/Component/Server/Stomp.pm
 
 PM_TO_BLIB = lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
@@ -229,8 +244,14 @@ PM_TO_BLIB = lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	blib/lib/POE/Component/MessageQueue.pm \
 	lib/POE/Component/MessageQueue/Subscription.pm \
 	blib/lib/POE/Component/MessageQueue/Subscription.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/UUID.pm \
+	blib/lib/POE/Component/MessageQueue/IDGenerator/UUID.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
+	lib/POE/Component/MessageQueue/Storage/Default.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/Default.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	lib/POE/Component/MessageQueue/Statistics.pm \
@@ -239,18 +260,28 @@ PM_TO_BLIB = lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic/Base.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Generic/Base.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm \
+	blib/lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm \
 	lib/POE/Component/MessageQueue/Client.pm \
 	blib/lib/POE/Component/MessageQueue/Client.pm \
+	lib/POE/Component/MessageQueue/Storage/BigMemory.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/BigMemory.pm \
 	lib/POE/Component/MessageQueue/Statistics/Publish.pm \
 	blib/lib/POE/Component/MessageQueue/Statistics/Publish.pm \
+	lib/POE/Component/MessageQueue/IDGenerator.pm \
+	blib/lib/POE/Component/MessageQueue/IDGenerator.pm \
 	lib/POE/Component/Server/Stomp.pm \
 	blib/lib/POE/Component/Server/Stomp.pm \
 	lib/POE/Component/MessageQueue/Logger.pm \
 	blib/lib/POE/Component/MessageQueue/Logger.pm \
+	lib/POE/Component/MessageQueue/Topic.pm \
+	blib/lib/POE/Component/MessageQueue/Topic.pm \
 	lib/POE/Component/MessageQueue/Storage.pm \
 	blib/lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Message.pm \
 	blib/lib/POE/Component/MessageQueue/Message.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm \
+	blib/lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	blib/lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Queue.pm \
@@ -321,7 +352,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = POE-Component-MessageQueue
-DISTVNAME = POE-Component-MessageQueue-0.1.7
+DISTVNAME = POE-Component-MessageQueue-0.1.8
 
 
 # --- MakeMaker macro section:
@@ -479,26 +510,40 @@ manifypods : pure_all  \
 	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue/Statistics/Publish/YAML.pm \
 	lib/POE/Component/MessageQueue.pm \
-	lib/POE/Component/MessageQueue/Statistics/Publish.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/UUID.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
-	lib/POE/Component/Server/Stomp.pm \
+	lib/POE/Component/MessageQueue/Storage/Default.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
-	lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Statistics.pm \
 	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm \
+	lib/POE/Component/MessageQueue/Storage/BigMemory.pm \
+	lib/POE/Component/MessageQueue/Statistics/Publish.pm \
+	lib/POE/Component/MessageQueue/IDGenerator.pm \
+	lib/POE/Component/Server/Stomp.pm \
+	lib/POE/Component/MessageQueue/Storage.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm \
 	lib/POE/Component/MessageQueue/Storage/Memory.pm \
 	lib/POE/Component/MessageQueue/Storage/Generic.pm \
 	lib/POE/Component/MessageQueue/Statistics/Publish/YAML.pm \
 	lib/POE/Component/MessageQueue.pm \
-	lib/POE/Component/MessageQueue/Statistics/Publish.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/UUID.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm \
 	lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
-	lib/POE/Component/Server/Stomp.pm \
+	lib/POE/Component/MessageQueue/Storage/Default.pm \
 	lib/POE/Component/MessageQueue/Storage/Complex.pm \
-	lib/POE/Component/MessageQueue/Storage.pm \
 	lib/POE/Component/MessageQueue/Statistics.pm \
 	lib/POE/Component/MessageQueue/Storage/DBI.pm \
+	lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm \
+	lib/POE/Component/MessageQueue/Storage/BigMemory.pm \
+	lib/POE/Component/MessageQueue/Statistics/Publish.pm \
+	lib/POE/Component/MessageQueue/IDGenerator.pm \
+	lib/POE/Component/Server/Stomp.pm \
+	lib/POE/Component/MessageQueue/Storage.pm \
+	lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm \
 	lib/POE/Component/MessageQueue/Storage/Throttled.pm
 	$(NOECHO) $(POD2MAN) --section=$(MAN3EXT) --perm_rw=$(PERM_RW) \
 	  lib/POE/Component/MessageQueue/Storage/Generic/DBI.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Generic::DBI.$(MAN3EXT) \
@@ -506,13 +551,20 @@ manifypods : pure_all  \
 	  lib/POE/Component/MessageQueue/Storage/Generic.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Generic.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Statistics/Publish/YAML.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Statistics::Publish::YAML.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue.pm $(INST_MAN3DIR)/POE::Component::MessageQueue.$(MAN3EXT) \
-	  lib/POE/Component/MessageQueue/Statistics/Publish.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Statistics::Publish.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/IDGenerator/UUID.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::IDGenerator::UUID.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Structure::DLList::Cell.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/FileSystem.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::FileSystem.$(MAN3EXT) \
-	  lib/POE/Component/Server/Stomp.pm $(INST_MAN3DIR)/POE::Component::Server::Stomp.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Storage/Default.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Default.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/Complex.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Complex.$(MAN3EXT) \
-	  lib/POE/Component/MessageQueue/Storage.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Statistics.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Statistics.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/DBI.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::DBI.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::IDGenerator::SimpleInt.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Storage/BigMemory.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::BigMemory.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Statistics/Publish.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Statistics::Publish.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/IDGenerator.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::IDGenerator.$(MAN3EXT) \
+	  lib/POE/Component/Server/Stomp.pm $(INST_MAN3DIR)/POE::Component::Server::Stomp.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Storage.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage.$(MAN3EXT) \
+	  lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Structure::DLList.$(MAN3EXT) \
 	  lib/POE/Component/MessageQueue/Storage/Throttled.pm $(INST_MAN3DIR)/POE::Component::MessageQueue::Storage::Throttled.$(MAN3EXT) 
 
 
@@ -855,7 +907,7 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,7,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,1,8,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>A Perl message queue based on POE that uses STOMP as its communication protocol.</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>David Snopek</AUTHOR>' >> $(DISTNAME).ppd
@@ -876,6 +928,7 @@ ppd:
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Component-Generic" VERSION="0,1001,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Component-Logger" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Component-Server-TCP" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Filter-Stomp" VERSION="0,02,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="POE-Wheel-ReadWrite" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Test-More" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="YAML" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
@@ -896,17 +949,25 @@ pm_to_blib : $(TO_INST_PM)
 	  lib/POE/Component/MessageQueue/Statistics/Publish/YAML.pm blib/lib/POE/Component/MessageQueue/Statistics/Publish/YAML.pm \
 	  lib/POE/Component/MessageQueue.pm blib/lib/POE/Component/MessageQueue.pm \
 	  lib/POE/Component/MessageQueue/Subscription.pm blib/lib/POE/Component/MessageQueue/Subscription.pm \
+	  lib/POE/Component/MessageQueue/IDGenerator/UUID.pm blib/lib/POE/Component/MessageQueue/IDGenerator/UUID.pm \
+	  lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm blib/lib/POE/Component/MessageQueue/Storage/Structure/DLList/Cell.pm \
 	  lib/POE/Component/MessageQueue/Storage/FileSystem.pm blib/lib/POE/Component/MessageQueue/Storage/FileSystem.pm \
+	  lib/POE/Component/MessageQueue/Storage/Default.pm blib/lib/POE/Component/MessageQueue/Storage/Default.pm \
 	  lib/POE/Component/MessageQueue/Storage/Complex.pm blib/lib/POE/Component/MessageQueue/Storage/Complex.pm \
 	  lib/POE/Component/MessageQueue/Statistics.pm blib/lib/POE/Component/MessageQueue/Statistics.pm \
 	  lib/POE/Component/MessageQueue/Storage/DBI.pm blib/lib/POE/Component/MessageQueue/Storage/DBI.pm \
 	  lib/POE/Component/MessageQueue/Storage/Generic/Base.pm blib/lib/POE/Component/MessageQueue/Storage/Generic/Base.pm \
+	  lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm blib/lib/POE/Component/MessageQueue/IDGenerator/SimpleInt.pm \
 	  lib/POE/Component/MessageQueue/Client.pm blib/lib/POE/Component/MessageQueue/Client.pm \
+	  lib/POE/Component/MessageQueue/Storage/BigMemory.pm blib/lib/POE/Component/MessageQueue/Storage/BigMemory.pm \
 	  lib/POE/Component/MessageQueue/Statistics/Publish.pm blib/lib/POE/Component/MessageQueue/Statistics/Publish.pm \
+	  lib/POE/Component/MessageQueue/IDGenerator.pm blib/lib/POE/Component/MessageQueue/IDGenerator.pm \
 	  lib/POE/Component/Server/Stomp.pm blib/lib/POE/Component/Server/Stomp.pm \
 	  lib/POE/Component/MessageQueue/Logger.pm blib/lib/POE/Component/MessageQueue/Logger.pm \
+	  lib/POE/Component/MessageQueue/Topic.pm blib/lib/POE/Component/MessageQueue/Topic.pm \
 	  lib/POE/Component/MessageQueue/Storage.pm blib/lib/POE/Component/MessageQueue/Storage.pm \
 	  lib/POE/Component/MessageQueue/Message.pm blib/lib/POE/Component/MessageQueue/Message.pm \
+	  lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm blib/lib/POE/Component/MessageQueue/Storage/Structure/DLList.pm \
 	  lib/POE/Component/MessageQueue/Storage/Throttled.pm blib/lib/POE/Component/MessageQueue/Storage/Throttled.pm \
 	  lib/POE/Component/MessageQueue/Queue.pm blib/lib/POE/Component/MessageQueue/Queue.pm 
 	$(NOECHO) $(TOUCH) pm_to_blib

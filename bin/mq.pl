@@ -3,7 +3,9 @@
 use POE;
 use POE::Component::Logger;
 use POE::Component::MessageQueue;
-use POE::Component::MessageQueue::Storage::Complex;
+use POE::Component::MessageQueue::Storage::Default;
+use POE::Component::MessageQueue::Storage::Memory;
+use POE::Component::MessageQueue::Storage::BigMemory;
 use Getopt::Long;
 use Devel::StackTrace;
 use IO::File;
@@ -25,28 +27,36 @@ my $pidfile;
 my $show_version = 0;
 my $show_usage   = 0;
 my $statistics   = 0;
+my $uuids = 1;
 my $stat_interval = 10;
+my $front_store = 'memory';
+my $crash_cmd = undef;
 
 GetOptions(
-	"port|p=i"     => \$port,
-	"hostname|h=s" => \$hostname,
-	"timeout|i=i"  => \$timeout,
-	"throttle|T=i" => \$throttle_max,
-	"data-dir=s"   => \$DATA_DIR,
-	"log-conf=s"   => \$CONF_LOG,
-	"stats!"       => \$statistics,
+	"port|p=i"         => \$port,
+	"hostname|h=s"     => \$hostname,
+	"timeout|i=i"      => \$timeout,
+	"front-store|f=s"  => \$front_store,
+	"throttle|T=i"     => \$throttle_max,
+	"data-dir=s"       => \$DATA_DIR,
+	"log-conf=s"       => \$CONF_LOG,
+	"stats!"           => \$statistics,
+	"uuids!"           => \$uuids,
 	"stats-interval=i" => \$stat_interval,
-	"background|b" => \$background,
-	"debug-shell"  => \$debug_shell,
-	"pidfile|p=s"  => \$pidfile,
-	"version|v"    => \$show_version,
-	"help|h"       => \$show_usage,
+	"background|b"     => \$background,
+	"debug-shell"      => \$debug_shell,
+	"pidfile|p=s"      => \$pidfile,
+	"crash-cmd=s"      => \$crash_cmd,
+	"version|v"        => \$show_version,
+	"help|h"           => \$show_usage,
 );
 
 sub version
 {
 	print "POE::Component::MessageQueue version $POE::Component::MessageQueue::VERSION\n";
-	print "Copyright 2007 David Snopek\n";
+	print "Copyright 2007, 2008 David Snopek (http://www.hackyourlife.org)\n";
+	print "Copyright 2007, 2008 Paul Driver <frodwith\@gmail.com>\n";
+	print "Copyright 2007 Daisuke Maki <daisuke\@endeworks.jp>\n";
 }
 
 sub usage
@@ -54,10 +64,12 @@ sub usage
 	my $X = ' ' x (length $0);
     print <<"ENDUSAGE";
 $0 [--port|-p <num>] [--hostname|-h <host>]
+$X [--front-store <str>] [--nouuids]
 $X [--timeout|-i <seconds>]   [--throttle|-T <count>]
 $X [--data-dir <path_to_dir>] [--log-conf <path_to_file>]
 $X [--stats] [--stats-interval|-i <seconds>]
 $X [--background|-b] [--pidfile|-p <path_to_file>]
+$X [--crash-cmd <path_to_script>]
 $X [--debug-shell] [--version|-v] [--help|-h]
 
 SERVER OPTIONS:
@@ -66,8 +78,12 @@ SERVER OPTIONS:
                           (Default: localhost)
 
 STORAGE OPTIONS:
+  --front-store -f <str>  Specify which in-memory storage engine to use for
+                          the front-store (can be memory or bigmemory).
   --timeout  -i <secs>    The number of seconds to keep messages in the 
                           front-store (Default: 4)
+  --[no]uuids             Use (or do not use) UUIDs instead of incrementing
+                          integers for message IDs.  Default: uuids 
   --throttle -T <count>   The number of messages that can be stored at once 
                           before throttling (Default: 2)
   --data-dir <path>       The path to the directory to store data 
@@ -85,6 +101,10 @@ DAEMON OPTIONS:
   --background -b         If specified the script will daemonize and run in the
                           background
   --pidfile    -p <path>  The path to a file to store the PID of the process
+
+  --crash-cmd  <path>     The path to a script to call when crashing.
+                          A stacktrace will be printed to the script's STDIN.
+                          (ex. 'mail root\@localhost')
 
 OTHER OPTIONS:
   --debug-shell           Run with POE::Component::DebugShell
@@ -154,16 +174,45 @@ else
 	print STDERR "LOGGER: Will send all messages to STDERR\n";
 }
 
+if ($front_store eq 'memory') 
+{
+	$front_store = POE::Component::MessageQueue::Storage::Memory->new();
+}
+elsif ($front_store eq 'bigmemory')
+{
+	$front_store = POE::Component::MessageQueue::Storage::BigMemory->new();
+}
+else
+{
+	die "Unknown front-store specified: $front_store";
+}
+
+my $idgen;
+if ($uuids) 
+{
+	use POE::Component::MessageQueue::IDGenerator::UUID;
+	$idgen = POE::Component::MessageQueue::IDGenerator::UUID->new();
+}
+else
+{
+	use POE::Component::MessageQueue::IDGenerator::SimpleInt;
+	$idgen = POE::Component::MessageQueue::IDGenerator::SimpleInt->new(
+		"$DATA_DIR/last_id.mq",
+	);
+}
+
 my %args = (
 	port     => $port,
 	hostname => $hostname,
 
-	storage => POE::Component::MessageQueue::Storage::Complex->new({
+	storage => POE::Component::MessageQueue::Storage::Default->new({
 		data_dir     => $DATA_DIR,
 		timeout      => $timeout,
-		throttle_max => $throttle_max
+		throttle_max => $throttle_max,
+		front_store  => $front_store,
 	}),
 
+	idgen => $idgen,
 	logger_alias => $logger_alias,
 );
 if ($statistics) {
@@ -188,27 +237,39 @@ if ( $debug_shell )
 
 # install a die handler so we can catch crashes and log them
 $SIG{__DIE__} = sub {
-	my $trace = Devel::StackTrace->new;
+	my $trace = Devel::StackTrace->new()->as_string();
+	my $banner = sprintf("\n%s\n", '=' x 30);
+	my $diemsg = sprintf("$banner MQ Crashed: %s $banner\n$trace", 
+		strftime('%Y-%m-%d %H:%M:%S', localtime(time())));
 
-	# attempt to write to the crashed log for later debugging
+	# Print it first, cause don't know if the other stuff is gonna work.
+	print STDERR $diemsg;
+
+	# This will probably work, but we should say so if it doesn't.
 	my $fn = "$DATA_DIR/crashed.log";
-	my $fd = IO::File->new(">>$fn");
-	if ( $fd )
+	if(open DIEFILE, ">>", $fn)
 	{
-		my (@l) = localtime(time());
-		$fd->write("\n============================== \n");
-		$fd->write(" Crashed: ".strftime('%Y-%m-%d %H:%M:%S', @l));
-		$fd->write("\n============================== \n\n");
-		$fd->write( $trace->as_string );
-		$fd->close();
+		print DIEFILE $diemsg;
+		close DIEFILE;	
 	}
 	else
 	{
-		print STDERR "Unable to open crashed log '$fn': $!\n";
+		print STDERR "Couldn't open crashlog '$fn': $!\n";
 	}
 
-	# spit out a stack trace
-	print STDERR $trace->as_string;
+	# Only bother if one was specified.
+	if ($crash_cmd)
+	{
+		if (open DIEPIPE, '|-', $crash_cmd)
+		{
+			print DIEPIPE $diemsg;
+			close DIEPIPE;	
+		}
+		else
+		{
+			print STDERR "Couldn't send crashlog to $crash_cmd: $!\n";
+		}
+	}
 };
 
 POE::Kernel->run();

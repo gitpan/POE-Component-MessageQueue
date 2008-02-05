@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ sub new
 
 	my $self = $class->SUPER::new( $args );
 
-	$self->{message_id}   = 0;
 	$self->{claiming}     = { };
 
 	my $generic = POE::Component::Generic->spawn(
@@ -89,7 +88,6 @@ sub new
 			$self => [
 				'_general_handler',
 				'_log_proxy',
-				'_init_message_id',
 				'_message_stored',
 				'_dispatch_message',
 				'_destination_ready',
@@ -104,16 +102,10 @@ sub new
 	$self->{generic} = $generic;
 	$self->{session} = $session;
 
-	bless $self, $class;
-
 	# before anything else, set the log function
 	$self->{generic}->set_log_function(
 		{ session => $session->ID(), event => '_general_handler' },
 		{ session => $session->ID(), event => '_log_proxy' });
-	# ... and get the next message id from the store (there *is* a race
-	# condition here, but I don't have a solution exactly now).
-	$self->{generic}->get_next_message_id(
-		{ session => $session->ID(), event => '_init_message_id' });
 	# set-up the postbacks for all the handlers
 	$self->{generic}->set_message_stored_handler(
 		{ session => $session->ID(), event => '_general_handler' },
@@ -128,20 +120,7 @@ sub new
 		{ session => $session->ID(), event => '_general_handler' },
 		{ session => $session->ID(), event => '_shutdown_complete' });
 
-	return $self;
-}
-
-sub get_next_message_id
-{
-	my $self = shift;
-
-	# we purposefully return the value THEN update it.  This is
-	# because the value we get from the underlying backend is
-	# already incremented.
-	
-	my $value = $self->{message_id};
-	$self->{message_id} ++;
-	return $value;
+	return bless $self, $class;
 }
 
 sub store
@@ -268,13 +247,6 @@ sub _log_proxy
 	my ($self, $type, $msg) = @_[ OBJECT, ARG0, ARG1 ];
 
 	$self->_log($type, $msg);
-}
-
-sub _init_message_id
-{
-	my ($self, $ref, $result) = @_[ OBJECT, ARG0, ARG1 ];
-
-	$self->{message_id} = $result;
 }
 
 sub _finished_claiming
@@ -412,16 +384,20 @@ The arguments to pass to the new() function of the above package.
 
 =head1 SEE ALSO
 
-L<DBI>,
-L<POE::Component::Generic>,
 L<POE::Component::MessageQueue>,
 L<POE::Component::MessageQueue::Storage>,
+L<POE::Component::Generic>
+
+I<Other storage engines:>
+
 L<POE::Component::MessageQueue::Storage::Memory>,
+L<POE::Component::MessageQueue::Storage::BigMemory>,
 L<POE::Component::MessageQueue::Storage::FileSystem>,
 L<POE::Component::MessageQueue::Storage::DBI>,
 L<POE::Component::MessageQueue::Storage::Generic::DBI>,
 L<POE::Component::MessageQueue::Storage::Throttled>,
-L<POE::Component::MessageQueue::Storage::Complex>
+L<POE::Component::MessageQueue::Storage::Complex>,
+L<POE::Component::MessageQueue::Storage::Default>
 
 =cut
 

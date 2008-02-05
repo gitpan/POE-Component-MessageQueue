@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -57,8 +57,7 @@ sub new
 	# we have to intercept the message_stored handler.
 	$self->{storage}->set_message_stored_handler(sub { return $self->_message_stored(@_); });
 
-	bless  $self, $class;
-	return $self;
+	return bless $self, $class;
 }
 
 # set_message_stored_handler() -- We maintain the parents version.
@@ -166,11 +165,6 @@ sub _message_stored
 	{
 		$self->{storage}->shutdown();
 	}
-}
-
-sub get_next_message_id
-{
-	return shift->{storage}->get_next_message_id();
 }
 
 sub store
@@ -307,16 +301,19 @@ The max number of messages that can be sent to the DBI store at one time.
 
 =head1 SEE ALSO
 
-L<DBI>,
-L<DBD::SQLite>,
 L<POE::Component::MessageQueue>,
-L<POE::Component::MessageQueue::Storage>,
+L<POE::Component::MessageQueue::Storage>
+
+I<Other storage engines:>
+
 L<POE::Component::MessageQueue::Storage::Memory>,
+L<POE::Component::MessageQueue::Storage::BigMemory>,
 L<POE::Component::MessageQueue::Storage::FileSystem>,
 L<POE::Component::MessageQueue::Storage::DBI>,
 L<POE::Component::MessageQueue::Storage::Generic>,
 L<POE::Component::MessageQueue::Storage::Generic::DBI>,
-L<POE::Component::MessageQueue::Storage::Complex>
+L<POE::Component::MessageQueue::Storage::Complex>,
+L<POE::Component::MessageQueue::Storage::Default>
 
 =cut
 

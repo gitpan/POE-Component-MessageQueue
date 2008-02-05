@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ sub new
 	# DEBUG!
 	#$poe_kernel->post( $self->{session}, '_log_state' );
 
-	return $self;
+	return bless $self, $class ;
 }
 
 sub __closure
@@ -123,12 +123,6 @@ sub set_logger
 
 	$self->SUPER::set_logger( $logger );
 	$self->{info_storage}->set_logger( $logger );
-}
-
-sub get_next_message_id
-{
-	my $self = shift;
-	return $self->{info_storage}->get_next_message_id();
 }
 
 sub store
@@ -585,16 +579,19 @@ The directory to store the files containing the message body's.
 
 =head1 SEE ALSO
 
-L<DBI>,
-L<POE::Component::EasyDBI>,
 L<POE::Component::MessageQueue>,
-L<POE::Component::MessageQueue::Storage>,
+L<POE::Component::MessageQueue::Storage>
+
+I<Other storage engines:>
+
 L<POE::Component::MessageQueue::Storage::DBI>,
 L<POE::Component::MessageQueue::Storage::Memory>,
+L<POE::Component::MessageQueue::Storage::BigMemory>,
 L<POE::Component::MessageQueue::Storage::Generic>,
 L<POE::Component::MessageQueue::Storage::Generic::DBI>,
 L<POE::Component::MessageQueue::Storage::Throttled>,
-L<POE::Component::MessageQueue::Storage::Complex>
+L<POE::Component::MessageQueue::Storage::Complex>,
+L<POE::Component::MessageQueue::Storage::Default>
 
 =cut
 

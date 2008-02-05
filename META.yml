@@ -31,6 +31,7 @@ requires:
   POE::Component::Generic: 0.1001
   POE::Component::Logger: 0
   POE::Component::Server::TCP: 0
+  POE::Filter::Stomp: 0.02
   POE::Wheel::ReadWrite: 0
   YAML: 0
-version: 0.1.7
+version: 0.1.8

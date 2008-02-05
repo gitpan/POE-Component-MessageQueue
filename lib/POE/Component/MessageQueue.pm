@@ -1,5 +1,5 @@
 #
-# Copyright 2007 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,13 +21,15 @@ use POE 0.38;
 use POE::Component::Server::Stomp;
 use POE::Component::MessageQueue::Client;
 use POE::Component::MessageQueue::Queue;
+use POE::Component::MessageQueue::Topic;
 use POE::Component::MessageQueue::Message;
+use POE::Component::MessageQueue::IDGenerator::UUID;
 use Net::Stomp;
 use Event::Notify;
 use vars qw($VERSION);
 use strict;
 
-$VERSION = '0.1.7';
+$VERSION = '0.1.8';
 
 use Carp qw(croak);
 use Data::Dumper;
@@ -48,6 +50,7 @@ sub new
 	my $storage;
 	my $logger_alias;
 	my $observers;
+	my $idgen;
 
 	if ( ref($args) eq 'HASH' )
 	{
@@ -57,6 +60,7 @@ sub new
 		$port     = $args->{port};
 		$domain   = $args->{domain};
 		
+		$idgen        = $args->{idgen};
 		$storage      = $args->{storage};
 		$logger_alias = $args->{logger_alias};
 		$observers    = $args->{observers};
@@ -77,9 +81,12 @@ sub new
 		logger    => $logger,
 		clients   => { },
 		queues    => { },
+		topics    => { },
 		needs_ack => { },
 		notify    => Event::Notify->new(),
 		observers => $observers,
+		idgen     => $idgen || 
+			POE::Component::MessageQueue::IDGenerator::UUID->new(),
 	};
 	bless $self, $class;
 
@@ -180,6 +187,17 @@ sub get_client
 	return $self->{clients}->{$client_id};
 }
 
+sub get_topic
+{
+	my ($self, $name) = @_;
+	my $topics = $self->{topics};
+
+	return ($topics->{$name}) || 
+	       ($topics->{$name} = POE::Component::MessageQueue::Topic->new(
+	         $name, $self->{notify}
+	       ));
+}
+
 sub get_queue
 {
 	my $self = shift;
@@ -209,6 +227,9 @@ sub remove_client
 		my $queue = $self->get_queue( $queue_name );
 		$queue->remove_subscription( $client );
 	}
+
+	# Unsubscribe from all topics
+	$_->remove_subscription($client) foreach (values %{$self->{topics}});
 
 	# remove from the client list
 	delete $self->{clients}->{$client_id};
@@ -261,35 +282,44 @@ sub _client_error
 	}
 }
 
+sub _destination_to_queue 
+{
+	$_ = shift;
+	return unless m{/queue/(.*)};
+	return $1;
+}
+
+sub _destination_to_topic
+{
+	$_ = shift;
+	return unless m{/topic/(.*)};
+	return $1;
+}
+
+sub pump_by_destination
+{
+	my ($self, $dest) = @_;
+	my $queue_name = _destination_to_queue($dest);
+	return unless $queue_name;
+	$self->get_queue($queue_name)->pump();
+}
+
 sub _message_stored
 {
 	my ($self, $message) = @_;
-	
-	my $destination = $message->{destination};
-	my $queue;
-
-	if ( $destination =~ /\/queue\/(.*)/ )
-	{
-		my $queue_name = $1;
-
-		$queue = $self->get_queue( $queue_name );
-	}
 
 	# pump the queue for good luck!
-	$queue->pump();
+	$self->pump_by_destination($message->{destination});	
 }
 
 sub _dispatch_from_store
 {
 	my ($self, $message, $destination, $client_id) = @_;
 	
-	my $queue;
-	if ( $destination =~ /\/queue\/(.*)/ )
-	{
-		my $queue_name = $1;
+	my $queue_name = _destination_to_queue($destination);
+	return unless $queue_name;
 
-		$queue = $self->get_queue( $queue_name );
-	}
+	my $queue = $self->get_queue( $queue_name );
 
 	my $client = $self->get_client( $client_id );
 
@@ -325,14 +355,7 @@ sub _destination_store_ready
 	my ($self, $destination) = @_;
 
 	#print "Queue is ready: $destination\n";
-
-	if ( $destination =~ /\/queue\/(.*)/ )
-	{
-		my $queue_name = $1;
-		my $queue = $self->get_queue( $queue_name );
-
-		$queue->pump();
-	}
+	$self->pump_by_destination($destination);	
 }
 
 sub _shutdown_complete
@@ -362,12 +385,7 @@ sub _pump
 {
 	my ($self, $kernel, $destination) = @_[ OBJECT, KERNEL, ARG0 ];
 
-	if ( $destination =~ /\/queue\/(.*)/ )
-	{
-		my $queue_name = $1;
-		my $queue = $self->get_queue( $queue_name );
-		$queue->pump();
-	}
+	$self->pump_by_destination($destination);
 }
 
 sub pump_deferred
@@ -408,45 +426,41 @@ sub route_frame
 		$frame  = shift;
 	}
 
-	if ( $frame->command eq 'CONNECT' )
-	{
-		$self->_log( 'notice',
-			sprintf ("RECV (%i): CONNECT %s:%s",
-				$client->{client_id},
-				$frame->headers->{login},
-				$frame->headers->{passcode})
-		);
-		
-		# connect!
-		$client->connect({
-			login    => $frame->headers->{login},
-			passcode => $frame->headers->{passcode}
-		});
-	}
-	elsif ( $frame->command eq 'DISCONNECT' )
-	{
-		$self->_log( 'notice', sprintf("RECV (%i): DISCONNECT", $client->{client_id}) );
+	my $cid = $client->{client_id};
+	my $destination = $frame->headers->{destination};
 
-		# disconnect, yo!
-		$self->remove_client( $client->{client_id} );
-	}
-	elsif ( $frame->command eq 'SEND' )
-	{
-		my $destination = $frame->headers->{destination};
-		my $persistent  = $frame->headers->{persistent} eq 'true';
-
-		$self->_log( 'notice',
-			sprintf ("RECV (%i): SEND message (%i bytes) to %s (persistent: %i)",
-				$client->{client_id},
-				length $frame->body,
-				$destination,
-				$persistent)
-		);
-
-		if ( $destination =~ /^\/queue\/(.*)$/ )
+	my $queue_or_topic = sub {
+		if (my $name = _destination_to_queue($destination)) 
 		{
-			my $queue_name = $1;
-			my $queue = $self->get_queue( $queue_name );
+			return $self->get_queue($name);
+		}
+		elsif (my $name = _destination_to_topic($destination))
+		{
+			return $self->get_topic($name);
+		}
+		return;
+	};
+
+	my %handlers = (
+		CONNECT => sub {
+			my $login = $frame->headers->{login};
+			my $passcode = $frame->headers->{passcode};
+
+			$self->_log('notice', "RECV ($cid): CONNECT $login:$passcode");
+			$client->connect({login => $login, passcode => $passcode});
+		},
+
+		DISCONNECT => sub {
+			$self->_log( 'notice', "RECV ($cid): DISCONNECT");
+			$self->remove_client($cid);
+		},
+
+		SEND => sub {
+			my $persistent  = $frame->headers->{persistent} eq 'true';
+
+			$self->_log('notice',
+				sprintf ("RECV (%s): SEND message (%i bytes) to %s (persistent: %i)",
+					$cid, length $frame->body, $destination, $persistent));
 
 			my $message = $self->create_message({
 				destination => $destination,
@@ -455,88 +469,92 @@ sub route_frame
 				stored      => 0
 			});
 
-			$self->{notify}->notify( 'recv', {
-				message => $message,
-				queue   => $queue,
-				client  => $client,
-			});
+			if (my $queue_name = _destination_to_queue($destination))
+			{
+				my $queue = $self->get_queue( $queue_name );
 
-			$queue->enqueue( $message );
+				$self->{notify}->notify( 'recv', {
+					message => $message,
+					queue   => $queue,
+					client  => $client,
+				});
 
-			$self->{notify}->notify( 'store', { queue => $queue, message => $message } );
-		}
-		else
-		{
-			$self->_log( 'error', "Don't know how to handle destination: $destination" );
-		}
-	}
-	elsif ( $frame->command eq 'SUBSCRIBE' )
+				$queue->enqueue( $message );
+
+				$self->{notify}->notify('store', { 
+					queue   => $queue, 
+					message => $message 
+				});
+			}
+			elsif (my $topic_name = _destination_to_topic($destination))
+			{
+				my $topic = $self->get_topic($topic_name);
+
+				$self->{notify}->notify( 'recv', {
+					message => $message,
+					topic   => $topic,
+					client  => $client,
+				});
+
+				$topic->send_message($message);
+			}
+			else
+			{
+				$self->_log('error', 
+					"Don't know how to handle destination: $destination");
+			}
+		},
+
+		SUBSCRIBE => sub {
+			my $ack_type = $frame->headers->{ack} || 'auto';
+
+			$self->_log('notice',
+				"RECV ($cid): SUBSCRIBE $destination (ack: $ack_type)");
+
+			if (my $thing = $queue_or_topic->())
+			{
+				$self->_log('notice', 
+					"MASTER: Subscribing client $cid to $destination"); 
+				$thing->add_subscription($client, $ack_type);
+			}
+		},
+
+		UNSUBSCRIBE => sub {
+			$self->_log('notice', "RECV ($cid): UNSUBSCRIBE $destination");
+
+			if (my $thing = $queue_or_topic->())
+			{
+				$self->_log('notice', 
+					"MASTER: Unsubscribing client $cid from $destination");
+				$thing->remove_subscription($client);
+			}
+		},
+
+		ACK => sub {
+			my $message_id = $frame->headers->{'message-id'};
+			$self->_log('notice', "RECV ($cid): ACK - message $message_id");
+			$self->ack_message($client, $message_id);
+		},
+	);
+
+	if (my $fn = $handlers{$frame->command})
 	{
-		my $destination = $frame->headers->{destination};
-		my $ack_type    = $frame->headers->{ack} || 'auto';
-
-		$self->_log( 'notice',
-			sprintf ("RECV (%i): SUBSCRIBE %s (ack: %s)",
-				$client->{client_id},
-				$destination,
-				$ack_type)
-		);
-
-		if ( $destination =~ /^\/queue\/(.*)$/ )
+		$fn->();
+		# Send receipt on anything but a connect
+		if ($frame->command ne 'CONNECT' && 
+				$frame->headers && 
+				(my $receipt = $frame->headers->{receipt}))
 		{
-			my $queue_name = $1;
-			my $queue = $self->get_queue( $queue_name );
-
-			$self->_log( 'notice', "MASTER: Subscribing client $client->{client_id} to $queue_name" );
-
-			$queue->add_subscription( $client, $ack_type );
+			$client->send_frame(Net::Stomp::Frame->new({
+				command => 'RECEIPT',
+				headers => {receipt => $receipt},
+			}));
 		}
-	}
-	elsif ( $frame->command eq 'UNSUBSCRIBE' )
-	{
-		my $destination = $frame->headers->{destination};
-
-		$self->_log( 'notice',
-			sprintf ("RECV (%i): UNSUBSCRIBE %s\n",
-				$client->{client_id},
-				$destination)
-		);
-
-		if ( $destination =~ /^\/queue\/(.*)$/ )
-		{
-			my $queue_name = $1;
-			my $queue = $self->get_queue( $queue_name );
-
-			$self->_log( 'notice', "MASTER: UN-subscribing client $client->{client_id} from $queue_name" );
-
-			$queue->remove_subscription( $client );
-		}
-	}
-	elsif ( $frame->command eq 'ACK' )
-	{
-		my $message_id = $frame->headers->{'message-id'};
-
-		$self->_log( 'notice',
-			sprintf ("RECV (%i): ACK - message %i",
-				$client->{client_id},
-				$message_id)
-		);
-
-		$self->ack_message( $client, $message_id );
 	}
 	else
 	{
-		$self->_log( 'error', "ERROR: Don't know how to handle frame: " . $frame->as_string );
-	}
-
-	if ($frame->command ne 'CONNECT' && $frame->headers && (my $receipt = $frame->headers->{receipt}))
-	{
-		$client->send_frame( Net::Stomp::Frame->new( {
-			command => 'RECEIPT',
-			headers => {
-				receipt => $receipt
-			}
-		} ) );
+		$self->_log('error', 
+			"ERROR: Don't know how to handle frame: " . $frame->as_string);
 	}
 }
 
@@ -547,7 +565,7 @@ sub create_message
 
 	if ( not defined $message->{message_id} )
 	{
-		$message->{message_id} = $self->{storage}->get_next_message_id();
+		$message->{message_id} = $self->{idgen}->generate($message);
 	}
 
 	return $message;
@@ -692,7 +710,7 @@ POE::Component::MessageQueue - A POE message queue that uses STOMP for the commu
   use POE;
   use POE::Component::Logger;
   use POE::Component::MessageQueue;
-  use POE::Component::MessageQueue::Storage::Complex;
+  use POE::Component::MessageQueue::Storage::Default;
   use strict;
 
   my $DATA_DIR = '/tmp/perl_mq';
@@ -713,7 +731,7 @@ POE::Component::MessageQueue - A POE message queue that uses STOMP for the commu
     logger_alias => 'mq_logger',  # Optional.
 
     # Required!!
-    storage => POE::Component::MessageQueue::Storage::Complex->new({
+    storage => POE::Component::MessageQueue::Storage::Default->new({
       data_dir     => $DATA_DIR,
       timeout      => 2,
       throttle_max => 2
@@ -728,43 +746,54 @@ POE::Component::MessageQueue - A POE message queue that uses STOMP for the commu
 If you are only interested in running with the recommended storage backend and
 some predetermined defaults, you can use the included command line script.
 
-  user$ mq.pl --help
-  POE::Component::MessageQueue version 0.1.7
-  Copyright 2007 David Snopek
-
+  POE::Component::MessageQueue version 0.1.8
+  Copyright 2007, 2008 David Snopek (http://www.hackyourlife.org)
+  Copyright 2007, 2008 Paul Driver <frodwith@gmail.com>
+  Copyright 2007 Daisuke Maki <daisuke@endeworks.jp>
+  
   mq.pl [--port|-p <num>] [--hostname|-h <host>]
+        [--front-store <str>] [--nouuids]
         [--timeout|-i <seconds>]   [--throttle|-T <count>]
         [--data-dir <path_to_dir>] [--log-conf <path_to_file>]
         [--stats] [--stats-interval|-i <seconds>]
         [--background|-b] [--pidfile|-p <path_to_file>]
+        [--crash-cmd <path_to_script>]
         [--debug-shell] [--version|-v] [--help|-h]
-
+  
   SERVER OPTIONS:
     --port     -p <num>     The port number to listen on (Default: 61613)
     --hostname -h <host>    The hostname of the interface to listen on 
                             (Default: localhost)
-
+  
   STORAGE OPTIONS:
+    --front-store -f <str>  Specify which in-memory storage engine to use for
+                            the front-store (can be memory or bigmemory).
     --timeout  -i <secs>    The number of seconds to keep messages in the 
                             front-store (Default: 4)
+    --[no]uuids             Use (or do not use) UUIDs instead of incrementing
+                            integers for message IDs.  Default: uuids 
     --throttle -T <count>   The number of messages that can be stored at once 
                             before throttling (Default: 2)
     --data-dir <path>       The path to the directory to store data 
                             (Default: /var/lib/perl_mq)
     --log-conf <path>       The path to the log configuration file 
                             (Default: /etc/perl_mq/log.conf
-
+  
   STATISTICS OPTIONS:
     --stats                 If specified the, statistics information will be 
                             written to $DATA_DIR/stats.yml
     --stats-interval <secs> Specifies the number of seconds to wait before 
                             dumping statistics (Default: 10)
-
+  
   DAEMON OPTIONS:
     --background -b         If specified the script will daemonize and run in the
                             background
     --pidfile    -p <path>  The path to a file to store the PID of the process
-
+  
+    --crash-cmd  <path>     The path to a script to call when crashing.
+                            A stacktrace will be printed to the script's STDIN.
+                            (ex. 'mail root@localhost')
+  
   OTHER OPTIONS:
     --debug-shell           Run with POE::Component::DebugShell
     --version    -v         Show the current version.
@@ -819,7 +848,7 @@ L<POE::Component::MessageQueue::Storage::Memory> -- The simplest storage engine.
 
 =item *
 
-L<POE::Component::MessageQueue::Storage::DBI> -- Uses Perl L<DBI> to store messages.  Not recommended to use directly because message body doesn't belong in the database.  All messages are stored persistently.  (Underneath this is really just L<POE::Component::MessageQueue::Storage::Generic> and L<POE::Component::MessageQueue::Storage::Generic::DBI>)
+L<POE::Component::MessageQueue::Storage::DBI> -- Uses Perl L<DBI> to store messages.  Depending on your database configuration, using directly may not be recommended because the message bodies are stored directly in the database.  Wrapping with L<POE::Component::MessageQueue::Storage::FileSystem> allows you to store the message bodies on disk.  All messages are stored persistently.  (Underneath this is really just L<POE::Component::MessageQueue::Storage::Generic> and L<POE::Component::MessageQueue::Storage::Generic::DBI>)
 
 =item *
 
@@ -835,11 +864,15 @@ L<POE::Component::MessageQueue::Storage::Generic::DBI> -- A synchronous L<DBI>-b
 
 =item *
 
-L<POE::Component::MessageQueue::Storage::Throttled> -- Wraps around another engine to limit the number of messages sent to be stored at once.  Use of this module is B<highly> recommend!  If the storage engine is unable to store the messages fast enough (ie. with slow disk IO) it can get really backed up and stall messages coming out of the queue, allowing execessive producers to basically monopolise the server, preventing any messages from getting distributed to subscribers.
+L<POE::Component::MessageQueue::Storage::Throttled> -- Wraps around another engine to limit the number of messages sent to be stored at once.  Use of this module is B<highly> recommend!  If the storage engine is unable to store the messages fast enough (ie. with slow disk IO) it can get really backed up and stall messages coming out of the queue, allowing execessive producers to basically monopolise the server, preventing any messages from getting distributed to subscribers.  Also, it will significantly cuts down the number of open FDs when used with L<POE::Component::MessageQueue::Storage::FileSystem>.
 
 =item *
 
-L<POE::Component::MessageQueue::Storage::Complex> -- A combination of the Memory, FileSystem, DBI and Throttled modules above.  It will keep messages in Memory and move them into FileSystem after a given number of seconds, throttling messages passed into DBI.  The DBI backend is configured to use SQLite.  It is capable of correctly handling a messages persistent flag.  This is the recommended storage engine and should provide the best performance in the most common case (ie. when both providers and consumers are connected to the queue at the same time).
+L<POE::Component::MessageQueue::Storage::Complex> -- A configurable storage engine that keeps a front-store (something fast) and a back-store (something persistent), allowing you to specify a timeout and an action to be taken when messages in the front-store expire, by default, moving them into the back-store.  It is capable of correctly handling a messages persistent flag.  This optimization allows for the possibility of messages being handled before ever having to be persisted.
+
+=item *
+
+L<POE::Component::MessageQueue::Storage::Default> -- A combination of the Complex, Memory, FileSystem, DBI and Throttled modules above.  It will keep messages in Memory and move them into FileSystem after a given number of seconds, throttling messages passed into DBI.  The DBI backend is configured to use SQLite.  It is capable of correctly handling a messages persistent flag.  This is the recommended storage engine and should provide the best performance in the most common case (ie. when both providers and consumers are connected to the queue at the same time).
 
 =back
 
@@ -911,9 +944,9 @@ L<http://www.activemq.org/> -- ActiveMQ is a popular Java-based message queue
 
 =back
 
-=head1 UPGRADING FROM 0.1.6 OR OLDER
+=head1 UPGRADING FROM OLDER VERSIONS
 
-If you used any of the following storage engines with PoCo::MQ 0.1.6 or older:
+If you used any of the following storage engines with PoCo::MQ 0.1.7 or older:
 
 =over 4
 
@@ -925,15 +958,25 @@ L<POE::Component::MessageQueue::Storage::DBI>
 
 The database format has changed.
 
-B<Note:> When using L<POE::Component::MessageQueue::Storage::Complex> (meaning mq.pl)
+B<Note:> When using L<POE::Component::MessageQueue::Storage::Default> (meaning mq.pl)
 the database will be automatically updated in place, so you don't need to worry
 about this.
 
-You will need to execute the following ALTER statements on your database to allow
-PoCo::MQ to keep working:
+Included in the distribution, is a schema/ directory with a few SQL scripts for 
+upgrading:
 
-  ALTER TABLE messages ADD COLUMN timestamp INT;
-  ALTER TABLE messages ADD COLUMN size      INT;
+=over
+
+=item *
+
+upgrade-0.1.7.sql -- Apply if you are upgrading from version 0.1.6 or older.
+
+=item *
+
+ugrade-0.1.8.sql -- Apply if your are upgrading from version 0.1.7 or after applying
+the above update script.
+
+=back
 
 =head1 CONTACT
 
@@ -973,10 +1016,6 @@ Full support for the STOMP protocol.
 
 =item *
 
-Topics a la "topic://" in ActiveMQ.
-
-=item *
-
 Some kind of security based on username/password.
 
 =item *
@@ -990,18 +1029,20 @@ Optional add on module via L<POE::Component::IKC::Server> that allows to introsp
 I<External modules:>
 
 L<POE>, L<POE::Component::Server::Stomp>, L<Net::Stomp>, L<POE::Component::Logger>, L<DBD::SQLite>,
-L<POE::Component::Generic>
+L<POE::Component::Generic>, L<POE::Filter::Stomp>
 
 I<Storage modules:>
 
 L<POE::Component::MessageQueue::Storage>,
 L<POE::Component::MessageQueue::Storage::Memory>,
+L<POE::Component::MessageQueue::Storage::BigMemory>,
 L<POE::Component::MessageQueue::Storage::DBI>,
 L<POE::Component::MessageQueue::Storage::FileSystem>,
 L<POE::Component::MessageQueue::Storage::Generic>,
 L<POE::Component::MessageQueue::Storage::Generic::DBI>,
 L<POE::Component::MessageQueue::Storage::Throttled>,
-L<POE::Component::MessageQueue::Storage::Complex>
+L<POE::Component::MessageQueue::Storage::Complex>,
+L<POE::Component::MessageQueue::Storage::Default>
 
 I<Statistics modules:>
 
@@ -1017,9 +1058,13 @@ some probably do exist.  If you find any, please let us know at the Google group
 That said, we are using this in production in a commercial application for
 thousands of large messages daily and we experience very few issues.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Copyright 2007 David Snopek (L<http://www.hackyourlife.org/>)
+Copyright 2007, 2008 David Snopek (L<http://www.hackyourlife.org>)
+
+Copyright 2007, 2008 Paul Driver <frodwith@gmail.com>
+
+Copyright 2007 Daisuke Maki <daisuke@endeworks.jp>
 
 =head1 LICENSE
 
