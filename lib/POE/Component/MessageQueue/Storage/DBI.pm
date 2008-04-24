@@ -16,22 +16,14 @@
 #
 
 package POE::Component::MessageQueue::Storage::DBI;
-use base qw(POE::Component::MessageQueue::Storage::Generic);
+use Moose;
 
-use POE::Component::MessageQueue::Storage::Generic::DBI;
-use strict;
+extends qw(POE::Component::MessageQueue::Storage::Generic);
 
-sub new
-{
-	my $class = shift;
-
-	my $self = $class->SUPER::new({
-		package => 'POE::Component::MessageQueue::Storage::Generic::DBI',
-		options => \@_,
-	});
-
-	return bless $self, $class;
-}
+has 'package_name' => (
+	is      => 'ro',
+	default => 'POE::Component::MessageQueue::Storage::Generic::DBI',
+);
 
 1;
 
@@ -71,7 +63,7 @@ POE::Component::MessageQueue::Storage::DBI -- A storage engine that uses L<DBI>
 =head1 DESCRIPTION
 
 A storage engine that uses L<DBI>.  All messages stored with this backend are
-persistent.
+persisted.
 
 Performance is increased greatly by wrapping this engine in 
 L<POE::Component::MessageQueue::Storage::Throttled> at the expense of being slower
