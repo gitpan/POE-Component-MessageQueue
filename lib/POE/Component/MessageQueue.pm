@@ -18,7 +18,7 @@
 package POE::Component::MessageQueue;
 use Moose;
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.1';
 
 use POE 0.38;
 use POE::Component::Server::Stomp;
@@ -910,7 +910,7 @@ upgrade-0.1.7.sql -- Apply if you are upgrading from version 0.1.6 or older.
 
 =item *
 
-ugrade-0.1.8.sql -- Apply if your are upgrading from version 0.1.7 or after applying
+upgrade-0.1.8.sql -- Apply if your are upgrading from version 0.1.7 or after applying
 the above update script.
 
 =back
@@ -1024,7 +1024,7 @@ L<POE::Component::MessageQueue::Statistics>,
 L<POE::Component::MessageQueue::Statistics::Publish>,
 L<POE::Component::MessageQueue::Statistics::Publish::YAML>
 
-I<ID generatior modules:>
+I<ID generator modules:>
 
 L<POE::Component::MessageQueue::IDGenerator>,
 L<POE::Component::MessageQueue::IDGenerator::SimpleInt>,

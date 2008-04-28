@@ -22,6 +22,7 @@ requires:
   Carp: 0
   DBD::SQLite: 1.13
   DBI: 0
+  Data::UUID: 0
   Event::Notify: 0
   Exception::Class::DBI: 0
   Exception::Class::TryCatch: 0
@@ -40,4 +41,4 @@ requires:
   POE::Filter::Stomp: 0.02
   POE::Wheel::ReadWrite: 0
   YAML: 0
-version: 0.2.0
+version: 0.2.1
