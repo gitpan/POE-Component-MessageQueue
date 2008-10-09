@@ -18,7 +18,7 @@
 package POE::Component::MessageQueue;
 use Moose;
 
-our $VERSION = '0.2.2';
+our $VERSION = '0.2.3';
 
 use POE 0.38;
 use POE::Component::Server::Stomp;
@@ -85,6 +85,18 @@ has clients => (
 );
 
 has shutdown_count => (metaclass => 'Counter');
+
+has message_class => (
+	is      => 'ro',
+	isa     => 'ClassName',
+	default => 'POE::Component::MessageQueue::Message',
+);
+
+has pump_frequency => (
+	is      => 'ro',
+	isa     => 'Maybe[Num]',
+	default => 0,
+);
 
 before remove_client => sub {
 	my ($self, @ids) = @_;
@@ -284,24 +296,21 @@ sub route_frame
 		},
 
 		SEND => sub {
-			my $persistent  = $frame->headers->{persistent} eq 'true' ? 1 : 0;
+			$frame->headers->{'message-id'} ||= $self->generate_id();
+			my $message = $self->message_class->from_stomp_frame($frame);
 
-			$self->log(notice =>
-				sprintf ("RECV (%s): SEND message (%i bytes) to %s (persistent: %i)",
-					$cid, length $frame->body, $destination_name, $persistent));
-
-			my $message = POE::Component::MessageQueue::Message->new(
-				id          => $self->generate_id(),
-				destination => $destination_name,
-				persistent  => $persistent,
-				body        => $frame->body,
-			);
-
-			unless ($persistent)
+			if ($message->has_delay() and not $self->pump_frequency)
 			{
-				my $after = $frame->headers->{'expire-after'};
-				$message->expire_at(time() + $after) if $after;
+				$message->clear_delay();
+
+				$self->log(warning => "MASTER: Received a message with deliver-after header, but there is no pump-frequency enabled.  Ignoring header and delivering with no delay.");
 			}
+
+			$self->log(notice => 
+				sprintf('RECV (%s): SEND message %s (%i bytes) to %s (persistent: %i)',
+					$cid, $message->id, $message->size, $message->destination,
+					$message->persistent));
+
 
 			if(my $d = $self->get_destination ($destination_name) ||
 			           $self->make_destination($destination_name))
@@ -508,7 +517,7 @@ POE::Component::MessageQueue - A POE message queue that uses STOMP for its commu
 If you are only interested in running with the recommended storage backend and
 some predetermined defaults, you can use the included command line script:
 
-  POE::Component::MessageQueue version 0.2.0
+  POE::Component::MessageQueue version 0.2.3
   Copyright 2007, 2008 David Snopek (http://www.hackyourlife.org)
   Copyright 2007, 2008 Paul Driver <frodwith@gmail.com>
   Copyright 2007 Daisuke Maki <daisuke@endeworks.jp>
@@ -517,6 +526,7 @@ some predetermined defaults, you can use the included command line script:
         [--front-store <str>]           [--front-max <size>] 
         [--granularity <seconds>]       [--nouuids]
         [--timeout|-i <seconds>]        [--throttle|-T <count>]
+        [--pump-freq|-Q <seconds>]
         [--data-dir <path_to_dir>]      [--log-conf <path_to_file>]
         [--stats-interval|-i <seconds>] [--stats]
         [--pidfile|-p <path_to_file>]   [--background|-b]
@@ -534,8 +544,11 @@ some predetermined defaults, you can use the included command line script:
     --front-max <size>      How much message body the front-store should cache.
                             This size is specified in "human-readable" format
                             as per the -h option of ls, du, etc. (ex. 2.5M)
-    --timeout  -i <secs>    The number of seconds to keep messages in the 
+    --timeout -i <secs>     The number of seconds to keep messages in the 
                             front-store (Default: 4)
+    --pump-freq -Q <secs>   How often (in seconds) to automatically pump each
+                            queue.  Set to zero to disable this timer entirely
+                            (Default: 0)
     --granularity <secs>    How often (in seconds) Complex should check for
                             messages that have passed the timeout.  
     --[no]uuids             Use (or do not use) UUIDs instead of incrementing
@@ -720,6 +733,16 @@ documentation for your storage engine.
 Using the Complex or Default storage engines, this header will be honored.  If it isn't
 specified, non-persistent messages are discarded when pushed out of the front store.
 
+=item B<deliver-after>
+
+For both persistent or non-persistent messages, you can set this header to the number of
+seconds this message should be held before being delivered.  In other words, this allows
+you to delay delivery of a message for an arbitrary number of seconds.
+
+All the storage engines in the standard distribution support this header.  B<But it will not
+work without a pump frequency enabled!>  If using mq.pl, enable with --pump-freq or if creating
+a L<POE::Component::MessageQueue> object directly, pass pump_frequency as an argument to new().
+
 =back
 
 =head2 Queues and Topics
@@ -850,8 +873,28 @@ to AF_INET.
 
 =item logger_alias => SCALAR
 
-Opitionally set the alias of the POE::Component::Logger object that you want the message
+Optionally set the alias of the POE::Component::Logger object that you want the message
 queue to log to.  If no value is given, log information is simply printed to STDERR.
+
+=item message_class => SCALAR
+
+Optionally set the package name to use for the Message object.  This should be a child
+class of POE::Component::MessageQueue::Message or atleast follow the same interface.
+
+This allows you to add new message headers which the MQ can recognize.
+
+=item pump_frequency => SCALAR
+
+Optionally set how often (in seconds) to automatically pump each queue.  If zero or
+no value is given, then this timer is disabled entirely.
+
+When disabled, each queue is only pumped when its contents change, meaning 
+when a message is added or removed from the queue.  Normally, this is enough.  However,
+if your storage engine holds back messages for any reason (ie. to delay their 
+delivery) it will be necessary to enable this, so that the held back messages will
+ultimately be delivered.
+
+I<You must enable this for the message queue to honor the deliver-after header!>
 
 =item observers => ARRAYREF
 
@@ -911,7 +954,12 @@ upgrade-0.1.7.sql -- Apply if you are upgrading from version 0.1.6 or older.
 =item *
 
 upgrade-0.1.8.sql -- Apply if your are upgrading from version 0.1.7 or after applying
-the above update script.
+the above upgrade script.  This one has a SQLite specific version: upgrade-0.1.8-sqlite.sql).
+
+=item *
+
+upgrade-0.2.3.sql -- Apply if you are upgrading from version 0.2.2 or older or after
+applying the above upgrade script.
 
 =back
 
@@ -932,7 +980,7 @@ out!
 Development is coordinated via Bazaar (See L<http://bazaar-vcs.org>).  The main
 Bazaar branch can be found here:
 
-L<http://code.hackyourlife.org/bzr/dsnopek/perl_mq>
+L<http://code.hackyourlife.org/bzr/dsnopek/perl_mq/devel.mainline>
 
 We prefer that contributions come in the form of a published Bazaar branch with the
 changes.  This helps facilitate the back-and-forth in the review process to get
