@@ -18,7 +18,7 @@
 package POE::Component::MessageQueue;
 use Moose;
 
-our $VERSION = '0.2.3';
+our $VERSION = '0.2.4';
 
 use POE 0.38;
 use POE::Component::Server::Stomp;
@@ -373,7 +373,7 @@ sub route_frame
 		{
 			$client->send_frame(Net::Stomp::Frame->new({
 				command => 'RECEIPT',
-				headers => {receipt => $receipt},
+				headers => {'receipt-id' => $receipt},
 			}));
 		}
 		$fn->();
