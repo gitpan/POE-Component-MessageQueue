@@ -6,6 +6,7 @@ build_requires:
   Data::Dumper: 0
   File::Temp: 0
   Test::Exception: 0
+  Test::MockObject: 0
   Test::More: 0
 distribution_type: module
 generated_by: 'Module::Install version 0.71'
@@ -31,8 +32,8 @@ requires:
   Event::Notify: 0
   Exception::Class::DBI: 0
   Exception::Class::TryCatch: 0
-  Heap: 0
-  Heap::Fibonacci: 0
+  Heap: 0.8
+  Heap::Fibonacci: 0.8
   IO::File: 0
   IO::String: 0
   Moose: 0
@@ -46,4 +47,4 @@ requires:
   POE::Filter::Stomp: 0.02
   POE::Wheel::ReadWrite: 0
   YAML: 0
-version: 0.2.4
+version: 0.2.5
