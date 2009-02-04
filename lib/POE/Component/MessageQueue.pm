@@ -1,5 +1,5 @@
 #
-# Copyright 2007, 2008 David Snopek <dsnopek@gmail.com>
+# Copyright 2007, 2008, 2009 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 package POE::Component::MessageQueue;
 use Moose;
 
-our $VERSION = '0.2.5';
+our $VERSION = '0.2.6';
 
 use POE 0.38;
 use POE::Component::Server::Stomp;
@@ -352,7 +352,7 @@ sub route_frame
 			if(my $d = $self->get_destination($destination_name))
 			{
 				$client->unsubscribe($d);
-				$self->storage->disown_destination($client->id, $d->name, 
+				$self->storage->disown_destination($d->name, $client->id, 
 					sub { $d->pump() });
 			}
 		},
@@ -391,7 +391,7 @@ sub ack_message
 	my $client_id = $client->id;
 
 	my $s = $self->get_owner($message_id);
-	if ($s && $s->client->id eq $client_id)
+	if ($s && $s->client && $s->client->id eq $client_id)
 	{
 		$self->delete_owner($message_id);
 		$s->ready(1);
@@ -517,8 +517,8 @@ POE::Component::MessageQueue - A POE message queue that uses STOMP for its commu
 If you are only interested in running with the recommended storage backend and
 some predetermined defaults, you can use the included command line script:
 
-  POE::Component::MessageQueue version 0.2.3
-  Copyright 2007, 2008 David Snopek (http://www.hackyourlife.org)
+  POE::Component::MessageQueue version 0.2.6
+  Copyright 2007, 2008, 2009 David Snopek (http://www.hackyourlife.org)
   Copyright 2007, 2008 Paul Driver <frodwith@gmail.com>
   Copyright 2007 Daisuke Maki <daisuke@endeworks.jp>
   
@@ -639,6 +639,7 @@ inside another application, the following synopsis may be useful to you:
   use POE::Component::Logger;
   use POE::Component::MessageQueue;
   use POE::Component::MessageQueue::Storage::Default;
+  use Socket; # For AF_INET
   use strict;
 
   my $DATA_DIR = '/tmp/perl_mq';
@@ -912,7 +913,7 @@ L<POE::Component::MessageQueue::Statistics>.  Please see its documentation for m
 
 =item [1]
 
-L<http://en.wikipedia.org/Message_Queue> -- General information about message queues
+L<http://en.wikipedia.org/wiki/Message_Queue> -- General information about message queues
 
 =item [2]
 
@@ -1039,6 +1040,16 @@ engines.
 
 =back
 
+=head1 APPLICATIONS USING PoCo::MQ
+
+=over 4
+
+=item L<http://chessvegas.com>
+
+Chess gaming site ChessVegas.
+
+=back
+
 =head1 SEE ALSO
 
 I<External modules:>
@@ -1088,7 +1099,7 @@ thousands of large messages daily and we experience very few issues.
 
 =head1 AUTHORS
 
-Copyright 2007, 2008 David Snopek (L<http://www.hackyourlife.org>)
+Copyright 2007, 2008, 2009 David Snopek (L<http://www.hackyourlife.org>)
 
 Copyright 2007, 2008 Paul Driver <frodwith@gmail.com>
 
