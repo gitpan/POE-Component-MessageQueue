@@ -1,7 +1,11 @@
 
+== 0.2.8 -- 01/26/2010 ==
+
+ * A better fix for new POE which doesn't crash the tests on some users systems.
+
 == 0.2.7 -- 01/23/2010 ==
 
- * Fixes to get PoCo::MQ working with latest Moose and POE (Thanks to James Gruessing!)
+ * Fixes to get PoCo::MQ working with latest Moose and POE (Thanks to SQUEEK!)
 
 == 0.2.6 -- 02/04/2009 ==
 
