@@ -1,19 +1,19 @@
 
 CREATE TABLE meta
 (
-	key   varchar(255) primary key,
-	value varchar(255)
+	`key`   varchar(255) primary key,
+	`value` varchar(255)
 );
-INSERT INTO meta (key, value) VALUES ('version', '0.2.3');
+INSERT INTO meta (`key`, `value`) VALUES ('version', '0.2.3');
 
 CREATE TABLE messages
 (
 	message_id  varchar(255) primary key,
 	destination varchar(255) not null,
-	persistent  enum('Y', 'N') default 'Y' not null,
+	persistent  enum('1', '0') default '1' not null,
 	in_use_by   int,
 	body        text,
-	timestamp   int,
+	timestamp   decimal(15,5),
 	size        int,
 	deliver_at  int
 );

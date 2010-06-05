@@ -10,10 +10,10 @@ CREATE TABLE messages
 (
 	message_id  varchar(255) primary key,
 	destination varchar(255) not null,
-	persistent  char(1) default 'Y' not null,
+	persistent  char(1) default '1' not null,
 	in_use_by   int,
 	body        text,
-	timestamp   int,
+	timestamp   decimal(15,5),
 	size        int,
 	deliver_at  int
 );
