@@ -1,5 +1,5 @@
 #
-# Copyright 2007, 2008, 2009 David Snopek <dsnopek@gmail.com>
+# Copyright 2007-2010 David Snopek <dsnopek@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -95,6 +95,8 @@ L<POE::Component::MessageQueue::Storage::Generic::DBI>).
 =item password => SCALAR
 
 =item options => SCALAR
+
+=item mq_id => SCALAR
 
 =back
 
