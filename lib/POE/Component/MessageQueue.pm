@@ -18,7 +18,7 @@
 package POE::Component::MessageQueue;
 use Moose;
 
-our $VERSION = '0.2.10';
+our $VERSION = '0.2.11';
 
 use POE 0.38;
 use POE::Component::Server::Stomp;
@@ -713,6 +713,10 @@ A strong effort is put to low memory and high performance.
 
 Message storage can be provided by a number of different backends.
 
+=item *
+
+Features to support high-availability and fail-over.  (See the L<#HIGH AVAILABILITY> section below)
+
 =back
 
 =head2 Special STOMP headers
@@ -918,6 +922,35 @@ L<POE::Component::MessageQueue::Statistics>.  Please see its documentation for m
 
 =back
 
+=head1 HIGH AVAILABILITY
+
+From version 0.2.10, PoCo::MQ supports a features to enable high availability.
+
+=over 4
+
+=item B<Clustering>
+
+You can now run multiple MQs which share the same back-store, behind a reverse-proxy load-balancer with
+automatic fail-over, if one of the MQs goes down.
+
+See the the clustering documentation for more information:
+
+L<POE::Component::MessageQueue::Manual::Clustering>
+
+=item B<DBI fail-over>
+
+The DBI storage engine can be configured with a list of database servers.  If one of them is not available
+or goes down, it will fail-over to the next one.
+
+If you set up several database servers with master-to-master replication, this will allow the MQ to seemlessly
+handle failure of one of the databases.
+
+See the DBI storage engine documentation for more information:
+
+L<POE::Component::MessageQueue::Storage::Generic::DBI>
+
+=back
+
 =head1 REFERENCES
 
 =over 4
@@ -1007,6 +1040,12 @@ L<http://code.hackyourlife.org/bzr/dsnopek/perl_mq/devel.mainline>
 We prefer that contributions come in the form of a published Bazaar branch with the
 changes.  This helps facilitate the back-and-forth in the review process to get
 any new code merged into the main branch.
+
+There is also an official git mirror hosted on GitHub here:
+
+L<https://github.com/dsnopek/POE--Component--MessageQueue>
+
+We will also accept contributions via git and GitHub pull requests!
 
 =head1 FUTURE
 
