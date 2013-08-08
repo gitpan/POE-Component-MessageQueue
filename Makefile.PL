@@ -37,7 +37,6 @@ my %WriteMakefileArgs = (
     "IO::File" => 0,
     "IO::String" => 0,
     "Moose" => "2.0201",
-    "MooseX::AttributeHelpers" => "0.08",
     "MooseX::MultiInitArg" => 0,
     "Net::Stomp" => 0,
     "POE" => "0.38",
@@ -52,7 +51,7 @@ my %WriteMakefileArgs = (
     "YAML" => 0
   },
   "TEST_REQUIRES" => {},
-  "VERSION" => "0.3000",
+  "VERSION" => "0.3001",
   "test" => {
     "TESTS" => "t/*.t"
   }
